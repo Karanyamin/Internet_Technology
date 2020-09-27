@@ -1,6 +1,18 @@
 import java.io.*;
 import java.net.*;
 
+
+public class HelloThread extends Thread {
+
+    public void run() {
+        System.out.println("Hello from a thread!");
+    }
+
+    public static void main(String args[]) {
+        (new HelloThread()).start();
+    }
+
+}
 class PartialHTTP1Server {
 
     public static void main(String args[]) throws Exception {
