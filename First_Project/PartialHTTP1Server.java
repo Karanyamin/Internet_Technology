@@ -5,45 +5,58 @@ import java.net.ServerSocket;
 import java.net.Socket;
 import java.util.StringTokenizer;
 import java.lang.String;
+import java.lang.*;
 //import java.io.IOException;
 
-/*
-public class HelloThread extends Thread {
 
-    public void run() {
-        System.out.println("Hello from a thread!");
-    }
-
-    public static void main(String args[]) {
-        (new HelloThread()).start();
-    }
-
-}
-*/
-/*
+//client_handler class
 class client_handler extends Thread
 {
-    final DataInputStream dis; 
-    final DataOutputStream dos; 
+    final BufferedReader inFromClient;
+    final DataOutputStream outToClient;
     final Socket s;
 
-    public ClientHandler(Socket s, DataInputStream dis, DataOutputStream dos)  
+    //constructor
+    public client_handler(Socket s, BufferedReader inFromClient, DataOutputStream outToClient)  
     { 
         this.s = s; 
-        this.dis = dis; 
-        this.dos = dos; 
+        this.inFromClient = inFromClient; 
+        this.outToClient = outToClient;  
     }
 
     public void run()  
     {  
-        while (true)  
-        { 
-            System.out.println("hi!");
-        }   
+        //while (true)  
+        //{ 
+            /*
+            //get request in form: <command> <resource> HTTP/1.0 (NOTE: THERE WILL BE A 5 SECOND TIMEOUT ERROR)
+            String str = inFromClient.readLine();
+            String[] client_request = str.split(" ");
+            if(client_request.length != 3)
+                //error  "400 Bad Request" 
+            if(client_request[2].compareTo("HTTP/1.0") != 0)
+                // error "505 HTTP Version Not Supported"
+
+            */
+            System.out.println("client connected with handler");
+            for (int i = 10; i < 13; i++) {
+
+                System.out.println(Thread.currentThread().getName() + "  " + i);
+                 try {
+                // thread to sleep for 1000 milliseconds
+                     Thread.sleep(1000);
+                 } catch (Exception e) {
+                System.out.println(e);
+                }
+             }
+            
+            //this.inFromClient.close(); 
+            //this.outToClient.close();
+       // }  
+    } 
 
 }
 
-*/
 
 class PartialHTTP1Server 
 {
@@ -57,28 +70,16 @@ class PartialHTTP1Server
         //create server socket given port number
         int portNumber = Integer.parseInt(args[0]);
         ServerSocket serverSocket = new ServerSocket(portNumber);
-
+        
         //wait for clients to connect
         while (true) 
         {
             Socket connectionSocket = serverSocket.accept();
             BufferedReader inFromClient = new BufferedReader(new InputStreamReader(connectionSocket.getInputStream()));
             DataOutputStream outToClient = new DataOutputStream(connectionSocket.getOutputStream());
-
-            //get request in form: <command> <resource> HTTP/1.0 (NOTE: THERE WILL BE A 5 SECOND TIMEOUT ERROR)
-            String str = inFromClient.readLine();
-            String[] client_request = str.split(" ");
-            if(client_request.length != 3)
-                //error  "400 Bad Request" 
-            if(client_request[2].compareTo("HTTP/1.0") != 0)
-                // error "505 HTTP Version Not Supported"
-
-            String command = client_request[0];
-            String resource = client_request[1];
-        
-            //Thread t = new client_handler(serverSocket, inFromClient, outToClient);
-            //t.start();
-
+            Thread t = new client_handler(connectionSocket, inFromClient, outToClient);
+            t.start();
         }
+        
     }
 }
