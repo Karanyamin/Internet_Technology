@@ -27,36 +27,51 @@ class client_handler extends Thread
     {  
         //get request in form: <command> <resource> HTTP/1.0 (NOTE: THERE WILL BE A 5 SECOND TIMEOUT ERROR)
         System.out.println("client connected!");
+        String client_sentence;
+        String server_response = "idk what happened";
         try{
-        String clientSentence = inFromClient.readLine();
-        String capitalizedSentence = clientSentence.toUpperCase() + '\n';
-        outToClient.writeBytes(capitalizedSentence);
+        client_sentence = inFromClient.readLine();
+        String client_request[] = client_sentence.split(" ");;
+        if(client_request.length != 3)
+            server_response = "400 Bad Request" + "\n";
+        else
+        {
+            String command = client_request[0];
+            String resource = client_request[1];
+            String version = client_request[2];
+            //check if the version of HTTP is valid ("HTTP/1.0")
+            if(version.compareTo("HTTP/1.0") != 0)
+            {
+                if(version.length() > 5)
+                {
+                    if(version.substring(0,5).compareTo("HTTP/") == 0 && Double.valueOf(version.substring(5)) != 1.0) 
+                        server_response = "505 HTTP Version Not Supported" + "\n";
+                    else
+                        server_response = "400 Bad Request" + "\n";
+                }else    
+                    server_response = "400 Bad Request" + "\n";
+            }else if(command.compareTo("GET") != 0 && command.compareTo("POST") != 0 && command.compareTo("HEAD") != 0){
+                //command is valid for 1.0 but not supported
+                if(command.compareTo("DELETE") == 0 || command.compareTo("PUT") == 0 || command.compareTo("LINK") == 0 || command.compareTo("UNLINK") == 0)
+                    server_response = "501 Not Implemented" + "\n";
+                else 
+                    server_response = "400 Bad Request" + "\n";
+                
+            }else if(command.compareTo("GET") == 0){
+                server_response = "200 OK" + "\n";
+            }
+            else if(command.compareTo("POST") == 0){
+                server_response = "200 OK" + "\n";
+            }
+            else if(command.compareTo("HEAD") == 0){
+                server_response = "200 OK" + "\n";
+            }
+
+        }
+        outToClient.writeBytes(server_response);
         }catch (IOException e) { 
                 e.printStackTrace();
         }
-
-        /*
-        String[] client_request = str.split(" ");
-        if(client_request.length != 3)
-            //error  "400 Bad Request" 
-        if(client_request[2].compareTo("HTTP/1.0") != 0)
-            // error "505 HTTP Version Not Supported"
-        
-        /*
-            for (int i = 10; i < 13; i++) 
-            {
-                System.out.println(Thread.currentThread().getName() + "  " + i);
-                 try {
-                // thread to sleep for 1000 milliseconds
-                     Thread.sleep(1000);
-                 } catch (Exception e) {
-                System.out.println(e);
-                }
-            }
-        */
-            //this.inFromClient.close(); 
-            //this.outToClient.close();
-        
     } 
 }
 
