@@ -33,7 +33,7 @@ class client_handler extends Thread
         client_sentence = inFromClient.readLine();
         String client_request[] = client_sentence.split(" ");;
         if(client_request.length != 3)
-            server_response = "400 Bad Request" + "\n";
+            server_response = "HTTP/1.0 400 Bad Request" + "\n";
         else
         {
             String command = client_request[0];
@@ -45,26 +45,26 @@ class client_handler extends Thread
                 if(version.length() > 5)
                 {
                     if(version.substring(0,5).compareTo("HTTP/") == 0 && Double.valueOf(version.substring(5)) != 1.0) 
-                        server_response = "505 HTTP Version Not Supported" + "\n";
+                        server_response = "HTTP/1.0 505 HTTP Version Not Supported" + "\n";
                     else
-                        server_response = "400 Bad Request" + "\n";
+                        server_response = "HTTP/1.0 400 Bad Request" + "\n";
                 }else    
-                    server_response = "400 Bad Request" + "\n";
+                    server_response = "HTTP/1.0 400 Bad Request" + "\n";
             }else if(command.compareTo("GET") != 0 && command.compareTo("POST") != 0 && command.compareTo("HEAD") != 0){
                 //command is valid for 1.0 but not supported
                 if(command.compareTo("DELETE") == 0 || command.compareTo("PUT") == 0 || command.compareTo("LINK") == 0 || command.compareTo("UNLINK") == 0)
-                    server_response = "501 Not Implemented" + "\n";
+                    server_response = "HTTP/1.0 501 Not Implemented" + "\n";
                 else 
-                    server_response = "400 Bad Request" + "\n";
+                    server_response = "HTTP/1.0 400 Bad Request" + "\n";
                 
             }else if(command.compareTo("GET") == 0){
-                server_response = "200 OK" + "\n";
+                server_response = "HTTP/1.0 200 OK" + "\n";
             }
             else if(command.compareTo("POST") == 0){
-                server_response = "200 OK" + "\n";
+                server_response = "HTTP/1.0 200 OK" + "\n";
             }
             else if(command.compareTo("HEAD") == 0){
-                server_response = "200 OK" + "\n";
+                server_response = "HTTP/1.0 200 OK" + "\n";
             }
 
         }
