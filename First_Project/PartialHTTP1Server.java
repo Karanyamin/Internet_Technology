@@ -59,6 +59,8 @@ class client_handler extends Thread
                 
             }else if(command.compareTo("GET") == 0){
                 server_response = "HTTP/1.0 200 OK" + "\n";
+                // Allow, Content-Encoding, Content-Length, Content-Type, Expires, Last-Modified for 200 OK
+    
             }
             else if(command.compareTo("POST") == 0){
                 server_response = "HTTP/1.0 200 OK" + "\n";
