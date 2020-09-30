@@ -7,6 +7,11 @@ import java.util.StringTokenizer;
 import java.lang.String;
 import java.lang.*;
 import java.io.IOException;
+import java.lang.Object;
+import java.nio.file.Files;
+import java.nio.file.Paths;
+import java.nio.charset.Charset;
+import java.util.Date;
 
 //client_handler class
 class client_handler extends Thread
@@ -23,17 +28,35 @@ class client_handler extends Thread
         this.outToClient = outToClient;  
     }
 
+    public void OK_headers(String resource)
+    {
+        //Allow, Content-Encoding, Content-Length, Content-Type, Expires, Last-Modified
+        try
+        {
+            File f = new File(resource);
+            Date d = new Date(f.lastModified());
+            outToClient.writeBytes("Allow: GET, POST, HEAD" + "\n"); //no sure if this is right
+            outToClient.writeBytes("Content-Type: " + Files.probeContentType(f.toPath()) + "\n");
+            outToClient.writeBytes("Content-Length: "+ f.length() + "\n");
+            outToClient.writeBytes("Last-Modified: " + d + "\n");
+            outToClient.writeBytes("Content-Encoding: identity" + "\n"); 
+            d.setTime(1626865200000L);
+            outToClient.writeBytes("Expires: " + d + "\n");
+        }catch (IOException e) { 
+                e.printStackTrace();
+        }       
+    }
+
     public void run()  
     {  
         //get request in form: <command> <resource> HTTP/1.0 (NOTE: THERE WILL BE A 5 SECOND TIMEOUT ERROR)
         System.out.println("client connected!");
         String client_sentence;
-        String server_response = "idk what happened";
         try{
         client_sentence = inFromClient.readLine();
         String client_request[] = client_sentence.split(" ");;
         if(client_request.length != 3)
-            server_response = "HTTP/1.0 400 Bad Request" + "\n";
+            outToClient.writeBytes("HTTP/1.0 400 Bad Request" + "\n");
         else
         {
             String command = client_request[0];
@@ -45,32 +68,40 @@ class client_handler extends Thread
                 if(version.length() > 5)
                 {
                     if(version.substring(0,5).compareTo("HTTP/") == 0 && Double.valueOf(version.substring(5)) != 1.0) 
-                        server_response = "HTTP/1.0 505 HTTP Version Not Supported" + "\n";
+                        outToClient.writeBytes("HTTP/1.0 505 HTTP Version Not Supported" + "\n");
                     else
-                        server_response = "HTTP/1.0 400 Bad Request" + "\n";
+                        outToClient.writeBytes("HTTP/1.0 400 Bad Request" + "\n");
                 }else    
-                    server_response = "HTTP/1.0 400 Bad Request" + "\n";
+                    outToClient.writeBytes("HTTP/1.0 400 Bad Request" + "\n");
             }else if(command.compareTo("GET") != 0 && command.compareTo("POST") != 0 && command.compareTo("HEAD") != 0){
                 //command is valid for 1.0 but not supported
                 if(command.compareTo("DELETE") == 0 || command.compareTo("PUT") == 0 || command.compareTo("LINK") == 0 || command.compareTo("UNLINK") == 0)
-                    server_response = "HTTP/1.0 501 Not Implemented" + "\n";
+                    outToClient.writeBytes("HTTP/1.0 501 Not Implemented" + "\n");
                 else 
-                    server_response = "HTTP/1.0 400 Bad Request" + "\n";
-                
+                    outToClient.writeBytes("HTTP/1.0 400 Bad Request" + "\n");
             }else if(command.compareTo("GET") == 0){
-                server_response = "HTTP/1.0 200 OK" + "\n";
-                // Allow, Content-Encoding, Content-Length, Content-Type, Expires, Last-Modified for 200 OK
-    
+                Charset charset = Charset.forName("ISO-8859-1");
+                try { //works for textfiles but idk about nontext files (MIME)
+                    List<String> lines = Files.readAllLines(Paths.get(resource), charset);
+                    outToClient.writeBytes("HTTP/1.0 200 OK" + "\n");
+                    OK_headers(resource);
+                    for (String line : lines) {
+                        System.out.println(line);
+                        outToClient.writeBytes(line + "\n");
+                    }
+                } catch (IOException e) {
+                    System.out.println(e);
+                    outToClient.writeBytes("404 Not Found" + "\n");
+                }
             }
             else if(command.compareTo("POST") == 0){
-                server_response = "HTTP/1.0 200 OK" + "\n";
+                outToClient.writeBytes("HTTP/1.0 200 OK" + "\n");
             }
             else if(command.compareTo("HEAD") == 0){
-                server_response = "HTTP/1.0 200 OK" + "\n";
+               outToClient.writeBytes("HTTP/1.0 200 OK" + "\n");
             }
 
         }
-        outToClient.writeBytes(server_response);
         }catch (IOException e) { 
                 e.printStackTrace();
         }

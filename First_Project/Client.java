@@ -22,9 +22,12 @@ public class Client
         System.out.println("connected to server!");
         sentence = inFromUser.readLine();
         outToServer.writeBytes(sentence + '\n');
+        while(true)
+        {
         modifiedSentence = inFromServer.readLine();
         System.out.println("FROM SERVER: " + modifiedSentence);
-        clientSocket.close(); 
+        }
+        //clientSocket.close(); 
     } 
 
 } 
