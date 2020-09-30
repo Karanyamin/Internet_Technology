@@ -28,12 +28,11 @@ class client_handler extends Thread
         this.outToClient = outToClient;  
     }
 
-    public void OK_headers(String resource)
+    public void OK_headers(File f)
     {
         //Allow, Content-Encoding, Content-Length, Content-Type, Expires, Last-Modified
         try
         {
-            File f = new File(resource);
             Date d = new Date(f.lastModified());
             outToClient.writeBytes("Allow: GET, POST, HEAD" + "\n"); //no sure if this is right
             outToClient.writeBytes("Content-Type: " + Files.probeContentType(f.toPath()) + "\n");
@@ -80,25 +79,60 @@ class client_handler extends Thread
                 else 
                     outToClient.writeBytes("HTTP/1.0 400 Bad Request" + "\n");
             }else if(command.compareTo("GET") == 0){
+                //NEED TO DO CONDITIONAL GET STILL
                 Charset charset = Charset.forName("ISO-8859-1");
                 try { //works for textfiles but idk about nontext files (MIME)
-                    List<String> lines = Files.readAllLines(Paths.get(resource), charset);
-                    outToClient.writeBytes("HTTP/1.0 200 OK" + "\n");
-                    OK_headers(resource);
-                    for (String line : lines) {
-                        System.out.println(line);
-                        outToClient.writeBytes(line + "\n");
+                    File f = new File(resource);
+                    if(f.exists())
+                    {
+                        List<String> lines = Files.readAllLines(Paths.get(resource), charset);
+                        outToClient.writeBytes("HTTP/1.0 200 OK" + "\n");
+                        OK_headers(f);
+                        for (String line : lines) {
+                            System.out.println(line);
+                            outToClient.writeBytes(line + "\n");
+                        }
                     }
+                    else
+                        outToClient.writeBytes("HTTP/1.0 404 Not Found" + "\n");
                 } catch (IOException e) {
                     System.out.println(e);
-                    outToClient.writeBytes("404 Not Found" + "\n");
                 }
             }
             else if(command.compareTo("POST") == 0){
-                outToClient.writeBytes("HTTP/1.0 200 OK" + "\n");
+                //NEED TO DO CONDITIONAL GET STILL
+                Charset charset = Charset.forName("ISO-8859-1");
+                try { //works for textfiles but idk about nontext files (MIME)
+                    File f = new File(resource);
+                    if(f.exists())
+                    {
+                        List<String> lines = Files.readAllLines(Paths.get(resource), charset);
+                        outToClient.writeBytes("HTTP/1.0 200 OK" + "\n");
+                        OK_headers(f);
+                        for (String line : lines) {
+                            System.out.println(line);
+                            outToClient.writeBytes(line + "\n");
+                        }
+                    }
+                    else
+                        outToClient.writeBytes("HTTP/1.0 404 Not Found" + "\n");
+                } catch (IOException e) {
+                    System.out.println(e);
+                }
             }
             else if(command.compareTo("HEAD") == 0){
-               outToClient.writeBytes("HTTP/1.0 200 OK" + "\n");
+               try {
+                    File f = new File(resource);
+                    if(f.exists())
+                    {
+                    outToClient.writeBytes("HTTP/1.0 200 OK" + "\n");
+                    OK_headers(f);
+                    }
+                    else
+                        outToClient.writeBytes("HTTP/1.0 404 Not Found" + "\n");
+                } catch (IOException e) {
+                    System.out.println(e);
+                }
             }
 
         }
