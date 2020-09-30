@@ -7,6 +7,28 @@ import java.util.StringTokenizer;
 import java.lang.String;
 import java.lang.*;
 import java.io.IOException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.*;
+
+
+class ThreadRunnable implements Runnable {
+    private int thread_id;
+    public ThreadRunnable(int thread_id) {
+        this.thread_id = thread_id;
+    }
+    //keeping track of when thread begins and ends
+    public void run() {
+        //need to figure out how to only use one thread for each server/client connection
+        System.out.println("Start Thread: " + thread_id);
+        try {
+            Thread.sleep(1000);
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+        System.out.println("Thread Completed: " + thread_id);
+    }
+}
 
 //client_handler class
 class client_handler extends Thread
@@ -91,6 +113,7 @@ class PartialHTTP1Server
         //create server socket given port number
         int portNumber = Integer.parseInt(args[0]);
         ServerSocket serverSocket = new ServerSocket(portNumber);
+        ExecutorService executor = Executors.newFixedThreadPool(50);
         
         //wait for clients to connect
         while (true) 
@@ -101,7 +124,20 @@ class PartialHTTP1Server
             DataOutputStream outToClient = new DataOutputStream(connectionSocket.getOutputStream());
             Thread t = new client_handler(connectionSocket, inFromClient, outToClient);
             t.start();
-        }
-        
+
+            //our code is now limited to 50 threads that can be used
+            for (int i = 0; i < 50; i++) {
+                executor.submit(new ThreadRunnable(i));
+            }
+            executor.shutdown();
+
+            while (!executor.isTerminated()) {}
+                System.out.println("All Threads Completed.");
+            /*try {
+            executor.awaitTermination(1, TimeUnit.DAYS);
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }*/
+        }    
     }
 }
