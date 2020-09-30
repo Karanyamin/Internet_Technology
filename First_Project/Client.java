@@ -25,7 +25,7 @@ public class Client
         while(true)
         {
         modifiedSentence = inFromServer.readLine();
-        System.out.println("FROM SERVER: " + modifiedSentence);
+        System.out.println(modifiedSentence);
         }
         //clientSocket.close(); 
     } 
