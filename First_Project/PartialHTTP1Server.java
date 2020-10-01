@@ -88,6 +88,7 @@ class client_handler extends Thread
     //Return true if the object has been modified since the date, and false otherwise. If false, write 304 Not Modified to server response
     public boolean hasBeenModified( String url, String dateLastModified){
         return true;
+
     }
 
     //File the file starting from the current working directory all the way down. If file missing, return null
@@ -177,7 +178,7 @@ class PartialHTTP1Server
     //initializing the thread pool - starting with 5 
     //private static ExecutorService pool = Executors.newFixedThreadPool(5);
     //Will limit number of threads that can run at same time to 5 and total number of threads queued and run to 50
-    private static ExecutorService pool = new ThreadPoolExecutor(5, 45, 0, TimeUnit.SECONDS, new ArrayBlockingQueue<>(5));
+    private static ExecutorService pool = new ThreadPoolExecutor(5, 49, 0, TimeUnit.SECONDS, new ArrayBlockingQueue<>(1));
     //arraylist to keep track of client threads
     private static ArrayList<client_handler> clients = new ArrayList<>();
 
