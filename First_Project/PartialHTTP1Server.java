@@ -92,9 +92,9 @@ class client_handler extends Thread
                         outToClient.println("HTTP/1.0 200 OK\r");
                         outToClient.println("\r");
                         OK_headers(f);
-                        for (String line : lines) {
-                            outToClient.println(line + "\r");
-                        }
+                        //for (String line : lines) {
+                        //    outToClient.println(line + "\r");
+                        //}
                     }
                     else
                         outToClient.println("HTTP/1.0 404 Not Found\r");
@@ -113,9 +113,9 @@ class client_handler extends Thread
                         outToClient.println("HTTP/1.0 200 OK\r");
                         outToClient.println("\r");
                         OK_headers(f);
-                        for (String line : lines) {
-                            outToClient.println(line + "\r");
-                        }
+                        //for (String line : lines) {
+                        //    outToClient.println(line + "\r");
+                        //}
                     }
                     else
                         outToClient.println("HTTP/1.0 404 Not Found\r");
@@ -133,7 +133,7 @@ class client_handler extends Thread
                     OK_headers(f);
                     }
                     else
-                        outToClient.println("HTTP/1.0 404 Not Found\r");
+                        outToClient.print("HTTP/1.0 404 Not Found\r\n");
                 //} catch (IOException e) {
                   //  System.out.println(e);
                 //}
