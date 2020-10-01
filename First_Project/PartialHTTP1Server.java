@@ -23,7 +23,7 @@ class client_handler extends Thread
     private ArrayList<client_handler> clients;
     final String crlf = "\r\n"; //Carriage return line feed
     private String server_response;
-    private int timeout = 5000 * 5; //in ms
+    private int timeout = 5000; //in ms
 
     //constructor
     public client_handler(Socket s, ArrayList<client_handler> clients, BufferedReader inFromClient, DataOutputStream outToClient)  
@@ -36,16 +36,15 @@ class client_handler extends Thread
 
     //Returns true if method field is GET, POST, HEAD and HTTP version is 1.0. False if anything else. If it returns False, write response to socket and close connection
     public boolean validRequestLine(String[] client_request){
-        if(client_request.length != 3) //WE should change this
+        if(client_request.length != 3){
             server_response = "HTTP/1.0 400 Bad Request" + crlf + crlf;
-        else
-        {
+            return false;
+        } else {
             String command = client_request[0];
             String resource = client_request[1];
             String version = client_request[2];
             //check if the version of HTTP is valid ("HTTP/1.0")
-            if(version.compareTo("HTTP/1.0") != 0)
-            {
+            if(version.compareTo("HTTP/1.0") != 0) {
                 if(version.length() > 5)
                 {
                     if(version.substring(0,5).compareTo("HTTP/") == 0 && Double.valueOf(version.substring(5)) != 1.0){
@@ -70,21 +69,66 @@ class client_handler extends Thread
                 }
             } else if(command.compareTo("GET") == 0){
                 server_response = "HTTP/1.0 200 OK" + crlf;
+                return true;
                 // Allow, Content-Encoding, Content-Length, Content-Type, Expires, Last-Modified for 200 OK
             }
             else if(command.compareTo("POST") == 0){
                 server_response = "HTTP/1.0 200 OK" + crlf;
+                return true;
             }
             else if(command.compareTo("HEAD") == 0){
                 server_response = "HTTP/1.0 200 OK" + crlf;
+                return true;
             }
-        }
 
+            return false; //Just here as placeholder Haven't made sure it is correct
+        }
+    }
+
+    //Return true if the object has been modified since the date, and false otherwise. If false, write 304 Not Modified to server response
+    public boolean hasBeenModified( String url, String dateLastModified){
         return true;
     }
 
-    public void handleRequest(String[] ClientRequest){
+    //File the file starting from the current working directory all the way down. If file missing, return null
+    public File returnFile(String url){
+        return null;
+    }
+
+    public void handleRequest(String command, String url, String version) throws IOException {
         //Code that handles a GET or POST or HEAD command goes here
+        //Check if there is a Conditional GET
+        String next = inFromClient.readLine();
+        String[] parseHeader = next.split(" ", 2);
+        boolean proceedWithGET = true;
+
+        if (parseHeader.length == 2 && parseHeader[0].equals("If-modified-since:")){
+            if(!hasBeenModified(url, parseHeader[1])){
+                proceedWithGET = false; //Means object hasn't been modified so we don't need to get the object
+            }
+        }
+
+        if (proceedWithGET){
+            //Find the file associated with the URL.
+            File file = returnFile(url);
+            if (file == null) { //File is missing, return 404 Not Found Error
+                //code
+            } else { //File exists, if it cannot be accessed return a 403 Forbidden Error, if it can be accessed but there is some Exception during IO return 500 Internal Server Error. If command is HEAD there should be no body
+                // code
+            }
+
+        }
+    }
+
+    public void printHTTPLine(String[] client_request){
+        //Just to make sure client_request has valid input (ONLY FOR DEBUGGING , DELETE FOR SUBMISSION)
+        if (client_request != null) {
+            System.out.println("Just for testing, print the length of line: " + client_request.length);
+            for (String value : client_request) {
+                System.out.println("[" + value + "]");
+            }
+            System.out.println("End of test");
+        }
     }
 
 
@@ -93,7 +137,7 @@ class client_handler extends Thread
         //get request in form: <command> <resource> HTTP/1.0 (NOTE: THERE WILL BE A 5 SECOND TIMEOUT ERROR)
         System.out.println("client connected!");
         String client_sentence;
-        server_response = "idk what happened";
+        server_response = "";
         try{
 
             s.setSoTimeout(timeout); //Sets the timeout for the socket to 5 seconds
@@ -106,19 +150,16 @@ class client_handler extends Thread
                 return;
             }
 
-            String client_request[] = client_sentence.split("[ \\r\\n]");;
+            String client_request[] = client_sentence.split(" ");; // "[ \\r\\n]"
 
-            System.out.println("Just for testing, print all three parts of request line, and length: " + client_request.length);
 
-            //Just to make sure client_request has valid input (ONLY FOR DEBUGGING , DELETE FOR SUBMISSION
-            for (int i = 0; i < client_request.length; i++) {
-                System.out.println("[" + client_request[i] + "]");
-            }
+            printHTTPLine(client_request);
+
 
             if(validRequestLine(client_request)){
                 //Request line is OK, and first line in http response is "HTTP/1.0 200 OK"
                 //We know the method is going to be either HEAD POST or GET
-                handleRequest(client_request);
+                handleRequest(client_request[0], client_request[1], client_request[2]);
             }
 
             System.out.println("Writing to client: " + server_response);

@@ -28,7 +28,7 @@ public class Client
         BufferedReader inFromServer = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
         System.out.println("connected to server! Enter command:");
         //sentence = inFromUser.readLine();
-        sentence = "GET url HTTP/1.0"; //Edit command here
+        sentence = "GET url HTTP/1.0"; //Edit command here \r\nIf-modified-since: Last January
         System.out.println("Sending command: [" + sentence + "]");
         outToServer.writeBytes(sentence + crlf + crlf);
         modifiedSentence = inFromServer.readLine();
