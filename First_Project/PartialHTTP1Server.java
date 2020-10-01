@@ -12,16 +12,18 @@ import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.nio.charset.Charset;
 import java.util.Date;
+import java.io.PrintWriter;
 
 //client_handler class
 class client_handler extends Thread
 {
     final BufferedReader inFromClient;
-    final DataOutputStream outToClient;
+    //final DataOutputStream outToClient;
+    final PrintWriter outToClient;
     final Socket s;
 
     //constructor
-    public client_handler(Socket s, BufferedReader inFromClient, DataOutputStream outToClient)  
+    public client_handler(Socket s, BufferedReader inFromClient, PrintWriter outToClient)  
     { 
         this.s = s; 
         this.inFromClient = inFromClient; 
@@ -34,13 +36,13 @@ class client_handler extends Thread
         try
         {
             Date d = new Date(f.lastModified());
-            outToClient.writeBytes("Allow: GET, POST, HEAD\r\n"); //no sure if this is right
-            outToClient.writeBytes("Content-Type: " + Files.probeContentType(f.toPath()) + "\r\n");
-            outToClient.writeBytes("Content-Length: "+ f.length() + "\r\n");
-            outToClient.writeBytes("Last-Modified: " + d + "\r\n");
-            outToClient.writeBytes("Content-Encoding: identity\r\n"); 
+            outToClient.println("Allow: GET, POST, HEAD\r"); //no sure if this is right
+            outToClient.println("Content-Type: " + Files.probeContentType(f.toPath()) + "\r");
+            outToClient.println("Content-Length: "+ f.length() + "\r");
+            outToClient.println("Last-Modified: " + d + "\r");
+            outToClient.println("Content-Encoding: identity\r"); 
             d.setTime(1626865200000L);
-            outToClient.writeBytes("Expires: " + d + "\r\n");
+            outToClient.println("Expires: " + d + "\r");
         }catch (IOException e) { 
                 e.printStackTrace();
         }       
@@ -53,9 +55,10 @@ class client_handler extends Thread
         String client_sentence;
         try{
         client_sentence = inFromClient.readLine();
-        String client_request[] = client_sentence.split(" ");;
-        if(client_request.length != 3)
-            outToClient.writeBytes("HTTP/1.0 400 Bad Request\r\n");
+        String client_request[] = client_sentence.split(" ");
+        if(client_request.length != 3){
+            outToClient.println("HTTP/1.0 400 Bad Request\r");
+        } 
         else
         {
             String command = client_request[0];
@@ -67,17 +70,17 @@ class client_handler extends Thread
                 if(version.length() > 5)
                 {
                     if(version.substring(0,5).compareTo("HTTP/") == 0 && Double.valueOf(version.substring(5)) != 1.0) 
-                        outToClient.writeBytes("HTTP/1.0 505 HTTP Version Not Supported\r\n");
+                        outToClient.println("HTTP/1.0 505 HTTP Version Not Supported\r");
                     else
-                        outToClient.writeBytes("HTTP/1.0 400 Bad Request\r\n");
+                        outToClient.println("HTTP/1.0 400 Bad Request\r");
                 }else    
-                    outToClient.writeBytes("HTTP/1.0 400 Bad Request\r\n");
+                    outToClient.println("HTTP/1.0 400 Bad Request\r");
             }else if(command.compareTo("GET") != 0 && command.compareTo("POST") != 0 && command.compareTo("HEAD") != 0){
                 //command is valid for 1.0 but not supported
                 if(command.compareTo("DELETE") == 0 || command.compareTo("PUT") == 0 || command.compareTo("LINK") == 0 || command.compareTo("UNLINK") == 0)
-                    outToClient.writeBytes("HTTP/1.0 501 Not Implemented\r\n");
+                    outToClient.println("HTTP/1.0 501 Not Implemented\r");
                 else 
-                    outToClient.writeBytes("HTTP/1.0 400 Bad Request\r\n");
+                    outToClient.println("HTTP/1.0 400 Bad Request\r");
             }else if(command.compareTo("GET") == 0){
                 //NEED TO DO CONDITIONAL GET STILL
                 Charset charset = Charset.forName("ISO-8859-1");
@@ -86,15 +89,15 @@ class client_handler extends Thread
                     if(f.exists())
                     {
                         List<String> lines = Files.readAllLines(Paths.get(resource), charset);
-                        outToClient.writeBytes("HTTP/1.0 200 OK\r\n");
+                        outToClient.println("HTTP/1.0 200 OK\r");
+                        outToClient.println("\r");
                         OK_headers(f);
                         for (String line : lines) {
-                            System.out.println(line);
-                            outToClient.writeBytes(line + "\r\n");
+                            outToClient.println(line + "\r");
                         }
                     }
                     else
-                        outToClient.writeBytes("HTTP/1.0 404 Not Found\r\n");
+                        outToClient.println("HTTP/1.0 404 Not Found\r");
                 } catch (IOException e) {
                     System.out.println(e);
                 }
@@ -107,34 +110,34 @@ class client_handler extends Thread
                     if(f.exists())
                     {
                         List<String> lines = Files.readAllLines(Paths.get(resource), charset);
-                        outToClient.writeBytes("HTTP/1.0 200 OK\r\n");
+                        outToClient.println("HTTP/1.0 200 OK\r");
+                        outToClient.println("\r");
                         OK_headers(f);
                         for (String line : lines) {
-                            System.out.println(line);
-                            outToClient.writeBytes(line + "\r\n");
+                            outToClient.println(line + "\r");
                         }
                     }
                     else
-                        outToClient.writeBytes("HTTP/1.0 404 Not Found\r\n");
+                        outToClient.println("HTTP/1.0 404 Not Found\r");
                 } catch (IOException e) {
                     System.out.println(e);
                 }
             }
             else if(command.compareTo("HEAD") == 0){
-               try {
+              // try {
                     File f = new File(resource);
                     if(f.exists())
                     {
-                    outToClient.writeBytes("HTTP/1.0 200 OK\r\n");
+                    outToClient.println("HTTP/1.0 200 OK\r");
+                    outToClient.println("\r");
                     OK_headers(f);
                     }
                     else
-                        outToClient.writeBytes("HTTP/1.0 404 Not Found\r\n");
-                } catch (IOException e) {
-                    System.out.println(e);
-                }
+                        outToClient.println("HTTP/1.0 404 Not Found\r");
+                //} catch (IOException e) {
+                  //  System.out.println(e);
+                //}
             }
-
         }
         }catch (IOException e) { 
                 e.printStackTrace();
@@ -163,7 +166,8 @@ class PartialHTTP1Server
             //when client connects to server, obtain input and out streams, and create thread
             Socket connectionSocket = serverSocket.accept();
             BufferedReader inFromClient = new BufferedReader(new InputStreamReader(connectionSocket.getInputStream()));
-            DataOutputStream outToClient = new DataOutputStream(connectionSocket.getOutputStream());
+            //DataOutputStream outToClient = new DataOutputStream(connectionSocket.getOutputStream());
+            PrintWriter outToClient = new PrintWriter(connectionSocket.getOutputStream(), true);
             Thread t = new client_handler(connectionSocket, inFromClient, outToClient);
             t.start();
         }
