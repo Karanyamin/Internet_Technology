@@ -9,6 +9,7 @@ import java.lang.*;
 import java.io.IOException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.*;
 import java.util.ArrayList;
 
@@ -133,7 +134,9 @@ class client_handler extends Thread
 class PartialHTTP1Server 
 {
     //initializing the thread pool - starting with 5 
-    private static ExecutorService pool = Executors.newFixedThreadPool(5);
+    //private static ExecutorService pool = Executors.newFixedThreadPool(5);
+    //Will limit number of threads that can run at same time to 5 and total number of threads queued and run to 50
+    private static ExecutorService pool = new ThreadPoolExecutor(5, 45, 0, TimeUnit.SECONDS, new ArrayBlockingQueue<>(5));
     //arraylist to keep track of client threads
     private static ArrayList<client_handler> clients = new ArrayList<>();
 
@@ -177,7 +180,15 @@ class PartialHTTP1Server
             client_handler clientThread  = new client_handler(connectionSocket, clients, inFromClient, outToClient);
             
             clients.add(clientThread);
-            pool.execute(clientThread);
+
+            try{
+                pool.execute(clientThread);
+            } catch (RejectedExecutionException e){
+                System.out.println("Number of threads is over 50, rejecting accept");
+                outToClient.writeBytes("HTTP/1.0 503 Service Unavailable\r\n\r\n");
+                connectionSocket.close();
+            }
+
             //pool.shutdown();
         }
     }
