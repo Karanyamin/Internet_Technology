@@ -10,25 +10,7 @@ import java.io.IOException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.*;
-
-
-class ThreadRunnable implements Runnable {
-    private int thread_id;
-    public ThreadRunnable(int thread_id) {
-        this.thread_id = thread_id;
-    }
-    //keeping track of when thread begins and ends
-    public void run() {
-        //need to figure out how to only use one thread for each server/client connection
-        System.out.println("Start Thread: " + thread_id);
-        try {
-            Thread.sleep(1000);
-        } catch (InterruptedException e) {
-            e.printStackTrace();
-        }
-        System.out.println("Thread Completed: " + thread_id);
-    }
-}
+import java.util.ArrayList;
 
 //client_handler class
 class client_handler extends Thread
@@ -36,11 +18,13 @@ class client_handler extends Thread
     final BufferedReader inFromClient;
     final DataOutputStream outToClient;
     final Socket s;
+    private ArrayList<client_handler> clients;
 
     //constructor
-    public client_handler(Socket s, BufferedReader inFromClient, DataOutputStream outToClient)  
+    public client_handler(Socket s, ArrayList<client_handler> clients, BufferedReader inFromClient, DataOutputStream outToClient)  
     { 
         this.s = s; 
+        this.clients = clients;
         this.inFromClient = inFromClient; 
         this.outToClient = outToClient;  
     }
@@ -102,6 +86,27 @@ class client_handler extends Thread
 // PartialHTTP1 Server Class
 class PartialHTTP1Server 
 {
+    //initializing the thread pool - starting with 5 
+    private static ExecutorService pool = Executors.newFixedThreadPool(5);
+    //arraylist to keep track of client threads
+    private static ArrayList<client_handler> clients = new ArrayList<>();
+
+    /*public thread_pool(int numThreads, int maxThreads){     
+        for(int i = 0; i < numThreads; i++){      
+            clients.add(new client_handler(clientThread));    
+        }    
+        
+        for(client_handler thread : clientThread) {      
+            thread.start();    
+        }  
+    }  
+                
+    public void stop() {     
+        for(client_handler thread : clientThreads){      
+            thread.stop();    
+        }  
+    }*/
+    
     public static void main(String args[]) throws Exception 
     {
         //check if there is one argument (port number)
@@ -113,7 +118,6 @@ class PartialHTTP1Server
         //create server socket given port number
         int portNumber = Integer.parseInt(args[0]);
         ServerSocket serverSocket = new ServerSocket(portNumber);
-        ExecutorService executor = Executors.newFixedThreadPool(50);
         
         //wait for clients to connect
         while (true) 
@@ -122,22 +126,11 @@ class PartialHTTP1Server
             Socket connectionSocket = serverSocket.accept();
             BufferedReader inFromClient = new BufferedReader(new InputStreamReader(connectionSocket.getInputStream()));
             DataOutputStream outToClient = new DataOutputStream(connectionSocket.getOutputStream());
-            Thread t = new client_handler(connectionSocket, inFromClient, outToClient);
-            t.start();
-
-            //our code is now limited to 50 threads that can be used
-            for (int i = 0; i < 50; i++) {
-                executor.submit(new ThreadRunnable(i));
-            }
-            executor.shutdown();
-
-            while (!executor.isTerminated()) {}
-                System.out.println("All Threads Completed.");
-            /*try {
-            executor.awaitTermination(1, TimeUnit.DAYS);
-            } catch (InterruptedException e) {
-                e.printStackTrace();
-            }*/
-        }    
+            client_handler clientThread  = new client_handler(connectionSocket, clients, inFromClient, outToClient);
+            
+            clients.add(clientThread);
+            pool.execute(clientThread);
+            //pool.shutdown();
+        }
     }
 }
