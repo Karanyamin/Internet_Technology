@@ -19,6 +19,8 @@ import java.text.ParseException;
 import java.nio.file.Files;
 
 
+//Quick Change
+
 //client_handler class
 class client_handler extends Thread
 {
@@ -39,9 +41,18 @@ class client_handler extends Thread
         this.outToClient = outToClient;  
     }
 
+    public boolean unSupportedVersion(String s){
+        if (s.equals("1.1") || s.equals("2.0") || s.equals("3.0") || s.equals("2") || s.equals("3")) {
+            return true;
+        } else {
+            return false;
+        }
+    }
+
     //Returns true if method field is GET, POST, HEAD and HTTP version is 1.0. False if anything else. If it returns False, write response to socket and close connection
     public boolean validRequestLine(String[] client_request){
         if(client_request.length != 3){
+            System.out.println("Check 1");
             server_response = "HTTP/1.0 400 Bad Request" + crlf + crlf;
             return false;
         } else {
@@ -49,10 +60,10 @@ class client_handler extends Thread
             String resource = client_request[1];
             String version = client_request[2];
             //check if the version of HTTP is valid ("HTTP/1.0")
-            if(version.compareTo("HTTP/1.0") != 0) {
+            if(version.compareTo("HTTP/1.0") != 0 && !version.equals("HTTP/0.9")) {
                 if(version.length() > 5)
                 {
-                    if(version.substring(0,5).compareTo("HTTP/") == 0 && Double.valueOf(version.substring(5)) != 1.0){
+                    if(version.substring(0,5).compareTo("HTTP/") == 0 && unSupportedVersion(version.substring(5)) ){ 
                         server_response = "HTTP/1.0 505 HTTP Version Not Supported" + crlf + crlf;
                     } else {
                         server_response = "HTTP/1.0 400 Bad Request" + crlf + crlf;
@@ -97,17 +108,17 @@ class client_handler extends Thread
                 }else{
                     File f = new File(resource.getPath());
                     SimpleDateFormat df = new SimpleDateFormat("EEE, dd MMM yyyy HH:mm:ss z", Locale.ENGLISH);
-                    Date result =  df.parse(dateLastModified);
+                    Date result = df.parse(dateLastModified);    
                     long lastModified = result.getTime();
-                        if(lastModified > f.lastModified()){ //FILE NOT MODIFIED SINCE
-                          server_response = ("HTTP/1.0 304 Not Modified" + crlf + crlf);
-                          return false;
+                        if(lastModified > f.lastModified() && lastModified <= System.currentTimeMillis()){ //FILE NOT MODIFIED SINCE and since date less than current system time
+                            server_response = ("HTTP/1.0 304 Not Modified" + crlf + "Expires: Sat, 21 Jul 2021 11:00:00 GMT" + crlf + crlf);
+                            return false;
                         }
                 }   
             }catch(ParseException pe){
-                pe.printStackTrace();
-                server_response = ("HTTP/1.0 400 Bad Request" + crlf + crlf); //invalid date = Bad request?
-                return false;
+                //pe.printStackTrace(); 
+                //server_response = ("HTTP/1.0 400 Bad Request" + crlf + crlf); //invalid date = Bad request? No @66 If date invalid, ignore the conditional
+                return true; //Assume has been "modified", or date is in invalid form and proceed like GET
             }
         //}catch(IOException e) {
         //    e.printStackTrace();
@@ -126,15 +137,17 @@ class client_handler extends Thread
                 ret = ret + "Content-Type: " + Files.probeContentType(f.toPath()) + crlf;
             else
                 ret = ret + "Content-Type: application/octet-stream" + crlf;
-            ret = ret + "Content-Length: "+ f.length() + crlf;
+            ret = ret + "Content-Length: " + f.length() + crlf;
             SimpleDateFormat sdf = new SimpleDateFormat("EEE, dd MMM yyyy HH:mm:ss z");
             sdf.setTimeZone(TimeZone.getTimeZone("GMT"));
             ret = ret + "Last-Modified: " + sdf.format(d) + crlf;
             ret = ret + "Content-Encoding: identity" + crlf; 
             ret = ret + "Allow: GET, POST, HEAD" + crlf; //no sure if this is right
             ret = ret + "Expires: Sat, 21 Jul 2021 11:00:00 GMT" + crlf + crlf; 
-        }catch (IOException e) { 
-                e.printStackTrace();
+        }catch (IOException e) {
+            System.out.println("Something went wrong trying to create headers/probe content");
+            ret = "HTTP/1.0 500 Internal Server Error" + crlf + crlf;
+            e.printStackTrace();
         }
         return ret;      
     }
@@ -152,9 +165,10 @@ class client_handler extends Thread
         String[] parseHeader = next.split(": "); // was (" ", 2) (?)
         boolean proceedWithGET = true;
 
-        if (parseHeader.length == 2 && parseHeader[0].equals("If-modified-since")){
+        if (parseHeader.length == 2 && parseHeader[0].equals("If-Modified-Since") && !command.equals("HEAD")){
             if(!hasBeenModified(url, parseHeader[1])){
                 proceedWithGET = false; //Means object hasn't been modified so we don't need to get the object
+                
             }
             if(proceedWithGET){
                 URL resource = getClass().getResource(url);
@@ -162,26 +176,40 @@ class client_handler extends Thread
                 if(!f.canRead()){
                     return ("HTTP/1.0 403 Forbidden" + crlf + crlf);
                 }else{
-                    return OK_headers(f);
+                    String tempServerResponse = OK_headers(f);
+                    if (tempServerResponse.equals("HTTP/1.0 500 Internal Server Error" + crlf + crlf)) return tempServerResponse; //Error occurred while making headers
+                    FileInputStream fileStream = new FileInputStream(f);
+                    outToClient.writeBytes(tempServerResponse);
+                    int b;
+                    while ((b = fileStream.read()) != -1){
+                        outToClient.write(b);
+                    }
+                    return "";
                     //need body of file and 500 Internal Server Error
                 }
             }
         }else{
-            //Find the file associated with the URL.
-            //File file = returnFile(url);
             URL resource = getClass().getResource(url);
             if(resource == null)
                 return ("HTTP/1.0 404 Not Found" + crlf + crlf);
             else{
                 File f = new File(resource.getPath());
-                //if (!f.exists()){ //File is missing, return 404 Not Found Error
-                    //return ("HTTP/1.0 404 Not Found" + crlf + crlf);
-            //}else { //File exists, if it cannot be accessed return a 403 Forbidden Error, if it can be accessed but there is some Exception during IO return 500 Internal Server Error. If command is HEAD there should be no body
-                // code
                 if(!f.canRead()){
                     return ("HTTP/1.0 403 Forbidden" + crlf + crlf);
                 }else{
-                    return OK_headers(f);
+                    String tempServerResponse = OK_headers(f);
+                    if (tempServerResponse.equals("HTTP/1.0 500 Internal Server Error" + crlf + crlf)) return tempServerResponse; //Error occurred while making headers
+                    //ONLY DO SO IF THERE IS NO HEAD
+                    if (!command.equals("HEAD")){
+                        FileInputStream fileStream = new FileInputStream(f);
+                        outToClient.writeBytes(tempServerResponse);
+                        int b;
+                        while ((b = fileStream.read()) != -1){
+                            outToClient.write(b);
+                        }
+                        return ""; 
+                    }
+                    return tempServerResponse;
                     //need body of file and 500 Internal Server Error
                 }
             }
@@ -226,14 +254,19 @@ class client_handler extends Thread
             printHTTPLine(client_request);//DELETE FOR SUBMISSION
 
 
+
             if(validRequestLine(client_request)){
                 //Request line is OK, and first line in http response is "HTTP/1.0 200 OK"
                 //We know the method is going to be either HEAD POST or GET
                 server_response = handleRequest(client_request[0], client_request[1], client_request[2]);
             }
-                
-            System.out.println("Writing to client: " + server_response);
-            outToClient.writeBytes(server_response);
+             
+            if (server_response.length() != 0){
+                System.out.println("Writing to client: " + server_response);
+                outToClient.writeBytes(server_response);
+            }
+            
+            System.out.println("Done writring");
 
         }catch (IOException e) {
             e.printStackTrace();
