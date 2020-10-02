@@ -12,6 +12,10 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.*;
 import java.util.ArrayList;
+import java.text.DateFormat;
+import java.text.SimpleDateFormat;
+import java.util.Date;
+import java.text.ParseException;
 
 
 //client_handler class
@@ -54,7 +58,7 @@ class client_handler extends Thread
                     }
                     return false;
                 } else{
-                    server_response = "HTTP/1.0 400 Bad Request" + crlf;
+                    server_response = "HTTP/1.0 400 Bad Request" + crlf + crlf;
                     return false;
                 }
             } else if(command.compareTo("GET") != 0 && command.compareTo("POST") != 0 && command.compareTo("HEAD") != 0){
@@ -70,7 +74,6 @@ class client_handler extends Thread
             } else if(command.compareTo("GET") == 0){
                 server_response = "HTTP/1.0 200 OK" + crlf;
                 return true;
-                // Allow, Content-Encoding, Content-Length, Content-Type, Expires, Last-Modified for 200 OK
             }
             else if(command.compareTo("POST") == 0){
                 server_response = "HTTP/1.0 200 OK" + crlf;
@@ -86,24 +89,47 @@ class client_handler extends Thread
     }
 
     //Return true if the object has been modified since the date, and false otherwise. If false, write 304 Not Modified to server response
-    public boolean hasBeenModified( String url, String dateLastModified){
+    public boolean hasBeenModified(String url, String dateLastModified){ 
+        try{
+            try{
+                File f = new File(url);
+                if(!f.exists()){ //FILE DNE
+                    outToClient.writeBytes("404 Not Found" + crlf + crlf);
+                    return false;
+                }else{
+                    DateFormat df = new SimpleDateFormat("EEE, dd MMM yyyy HH:mm:ss z", Locale.ENGLISH);
+                    Date result =  df.parse(dateLastModified);
+                    long lastModified = result.getTime();
+                        if(lastModified > f.lastModified()){ //FILE NOT MODIFIED SINCE
+                          outToClient.writeBytes("304 Not Modified" + crlf + crlf);
+                          return false;
+                        }
+                }
+            }catch(ParseException pe){
+                pe.printStackTrace();
+                outToClient.writeBytes("400 Bad Request" + crlf + crlf); //invalid date = Bad request?
+                return false;
+            }
+        }catch(IOException e) {
+            e.printStackTrace();
+        }
+
         return true;
-
     }
-
+    /*
     //File the file starting from the current working directory all the way down. If file missing, return null
     public File returnFile(String url){
         return null;
     }
-
+    */
     public void handleRequest(String command, String url, String version) throws IOException {
         //Code that handles a GET or POST or HEAD command goes here
         //Check if there is a Conditional GET
         String next = inFromClient.readLine();
-        String[] parseHeader = next.split(" ", 2);
+        String[] parseHeader = next.split(": "); // was (" ", 2) (?)
         boolean proceedWithGET = true;
 
-        if (parseHeader.length == 2 && parseHeader[0].equals("If-modified-since:")){
+        if (parseHeader.length == 2 && parseHeader[0].equals("If-modified-since")){
             if(!hasBeenModified(url, parseHeader[1])){
                 proceedWithGET = false; //Means object hasn't been modified so we don't need to get the object
             }
@@ -111,9 +137,10 @@ class client_handler extends Thread
 
         if (proceedWithGET){
             //Find the file associated with the URL.
-            File file = returnFile(url);
-            if (file == null) { //File is missing, return 404 Not Found Error
-                //code
+            //File file = returnFile(url);
+            File file = new File(url);
+            if (!file.exists()) { //File is missing, return 404 Not Found Error
+                outToClient.writeBytes("404 Not Found" + crlf + crlf);
             } else { //File exists, if it cannot be accessed return a 403 Forbidden Error, if it can be accessed but there is some Exception during IO return 500 Internal Server Error. If command is HEAD there should be no body
                 // code
             }
@@ -135,7 +162,6 @@ class client_handler extends Thread
 
     public void run()  
     {  
-        //get request in form: <command> <resource> HTTP/1.0 (NOTE: THERE WILL BE A 5 SECOND TIMEOUT ERROR)
         System.out.println("client connected!");
         String client_sentence;
         server_response = "";
@@ -154,7 +180,7 @@ class client_handler extends Thread
             String client_request[] = client_sentence.split(" ");; // "[ \\r\\n]"
 
 
-            printHTTPLine(client_request);
+            printHTTPLine(client_request);//DELETE FOR SUBMISSION
 
 
             if(validRequestLine(client_request)){
@@ -181,22 +207,6 @@ class PartialHTTP1Server
     private static ExecutorService pool = new ThreadPoolExecutor(5, 49, 0, TimeUnit.SECONDS, new ArrayBlockingQueue<>(1));
     //arraylist to keep track of client threads
     private static ArrayList<client_handler> clients = new ArrayList<>();
-
-    /*public thread_pool(int numThreads, int maxThreads){     
-        for(int i = 0; i < numThreads; i++){      
-            clients.add(new client_handler(clientThread));    
-        }    
-        
-        for(client_handler thread : clientThread) {      
-            thread.start();    
-        }  
-    }  
-                
-    public void stop() {     
-        for(client_handler thread : clientThreads){      
-            thread.stop();    
-        }  
-    }*/
     
     public static void main(String args[]) throws Exception 
     {
@@ -235,3 +245,23 @@ class PartialHTTP1Server
         }
     }
 }
+
+/*
+    public void OK_headers(File f)
+    {
+        //Allow, Content-Encoding, Content-Length, Content-Type, Expires, Last-Modified
+        try
+        {
+            Date d = new Date(f.lastModified());
+            outToClient.println("Allow: GET, POST, HEAD\r"); //no sure if this is right
+            outToClient.println("Content-Type: " + Files.probeContentType(f.toPath()) + "\r");
+            outToClient.println("Content-Length: "+ f.length() + "\r");
+            outToClient.println("Last-Modified: " + d + "\r");
+            outToClient.println("Content-Encoding: identity\r"); 
+            d.setTime(1626865200000L);
+            outToClient.println("Expires: " + d + "\r");
+        }catch (IOException e) { 
+                e.printStackTrace();
+        }       
+    }
+*/
