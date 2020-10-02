@@ -42,6 +42,7 @@ class client_handler extends Thread
     //Returns true if method field is GET, POST, HEAD and HTTP version is 1.0. False if anything else. If it returns False, write response to socket and close connection
     public boolean validRequestLine(String[] client_request){
         if(client_request.length != 3){
+            System.out.println("Check 1");
             server_response = "HTTP/1.0 400 Bad Request" + crlf + crlf;
             return false;
         } else {
@@ -106,8 +107,8 @@ class client_handler extends Thread
                 }   
             }catch(ParseException pe){
                 pe.printStackTrace();
-                server_response = ("HTTP/1.0 400 Bad Request" + crlf + crlf); //invalid date = Bad request?
-                return false;
+                //server_response = ("HTTP/1.0 400 Bad Request" + crlf + crlf); //invalid date = Bad request? No @66 If date invalid, ignore the conditional
+                return true; //Assume has been "modified" and proceed like GET
             }
         //}catch(IOException e) {
         //    e.printStackTrace();
@@ -126,15 +127,17 @@ class client_handler extends Thread
                 ret = ret + "Content-Type: " + Files.probeContentType(f.toPath()) + crlf;
             else
                 ret = ret + "Content-Type: application/octet-stream" + crlf;
-            ret = ret + "Content-Length: "+ f.length() + crlf;
+            ret = ret + "Content-Length: " + f.length() + crlf;
             SimpleDateFormat sdf = new SimpleDateFormat("EEE, dd MMM yyyy HH:mm:ss z");
             sdf.setTimeZone(TimeZone.getTimeZone("GMT"));
             ret = ret + "Last-Modified: " + sdf.format(d) + crlf;
             ret = ret + "Content-Encoding: identity" + crlf; 
             ret = ret + "Allow: GET, POST, HEAD" + crlf; //no sure if this is right
             ret = ret + "Expires: Sat, 21 Jul 2021 11:00:00 GMT" + crlf + crlf; 
-        }catch (IOException e) { 
-                e.printStackTrace();
+        }catch (IOException e) {
+            System.out.println("Something went wrong trying to create headers/probe content");
+            ret = "HTTP/1.0 500 Internal Server Error" + crlf + crlf;
+            e.printStackTrace();
         }
         return ret;      
     }
@@ -152,7 +155,7 @@ class client_handler extends Thread
         String[] parseHeader = next.split(": "); // was (" ", 2) (?)
         boolean proceedWithGET = true;
 
-        if (parseHeader.length == 2 && parseHeader[0].equals("If-modified-since")){
+        if (parseHeader.length == 2 && parseHeader[0].equals("If-modified-since") && !command.equals("HEAD")){
             if(!hasBeenModified(url, parseHeader[1])){
                 proceedWithGET = false; //Means object hasn't been modified so we don't need to get the object
             }
@@ -160,28 +163,28 @@ class client_handler extends Thread
                 URL resource = getClass().getResource(url);
                 File f = new File(resource.getPath());
                 if(!f.canRead()){
+                    System.out.println("In here 1");
                     return ("HTTP/1.0 403 Forbidden" + crlf + crlf);
                 }else{
+                    String tempServerResponse = OK_headers(f);
                     return OK_headers(f);
                     //need body of file and 500 Internal Server Error
                 }
             }
         }else{
-            //Find the file associated with the URL.
-            //File file = returnFile(url);
             URL resource = getClass().getResource(url);
             if(resource == null)
                 return ("HTTP/1.0 404 Not Found" + crlf + crlf);
             else{
                 File f = new File(resource.getPath());
-                //if (!f.exists()){ //File is missing, return 404 Not Found Error
-                    //return ("HTTP/1.0 404 Not Found" + crlf + crlf);
-            //}else { //File exists, if it cannot be accessed return a 403 Forbidden Error, if it can be accessed but there is some Exception during IO return 500 Internal Server Error. If command is HEAD there should be no body
-                // code
                 if(!f.canRead()){
+                    System.out.println("PAth 2 of the file [" + f.getCanonicalPath() + "]" + "Exist?[" + f.exists() + "]");
                     return ("HTTP/1.0 403 Forbidden" + crlf + crlf);
                 }else{
-                    return OK_headers(f);
+                    String tempServerResponse = OK_headers(f);
+                    if (tempServerResponse.equals("HTTP/1.0 500 Internal Server Error" + crlf + crlf)) return tempServerResponse; //Error occurred while making headers
+
+                    return tempServerResponse;
                     //need body of file and 500 Internal Server Error
                 }
             }
@@ -234,6 +237,7 @@ class client_handler extends Thread
                 
             System.out.println("Writing to client: " + server_response);
             outToClient.writeBytes(server_response);
+            System.out.println("Done writring");
 
         }catch (IOException e) {
             e.printStackTrace();

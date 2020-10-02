@@ -24,9 +24,9 @@ public class Client
         String sentence;
         String modifiedSentence;
         BufferedReader inFromUser = new BufferedReader(new InputStreamReader(System.in));
-        Socket clientSocket = new Socket("hostname", 3456);
+        //Socket clientSocket = new Socket("hostname", 3456);
         //DataOutputStream outToServer = new DataOutputStream(clientSocket.getOutputStream());
-        PrintWriter outToServer = new PrintWriter(clientSocket.getOutputStream(), true);
+        //PrintWriter outToServer = new PrintWriter(clientSocket.getOutputStream(), true);
         Socket clientSocket = new Socket("localhost", Integer.parseInt(args[0]));
 /*
         for (int i = 0; i < 10; i++) {
@@ -36,18 +36,18 @@ public class Client
         DataOutputStream outToServer = new DataOutputStream(clientSocket.getOutputStream());
         BufferedReader inFromServer = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
         System.out.println("connected to server! Enter command:");
-        sentence = inFromUser.readLine();
-        sentence = sentence + "\r";
-        outToServer.println(sentence);
-        while(true)
-        {
-        //sentence = "GET url HTTP/1.0"; //Edit command here \r\nIf-modified-since: Last January
-        //System.out.println("Sending command: [" + sentence + "]");
-        //outToServer.writeBytes(sentence + crlf + crlf);
+        //sentence = inFromUser.readLine();
+        //sentence = sentence + "\r";
+        //outToServer.println(sentence);
+        //while(true)
+        //{
+        sentence = "GET /random.txt HTTP/1.0"; //Edit command here \r\nIf-modified-since: Last January
+        System.out.println("Sending command: [" + sentence + "]");
+        outToServer.writeBytes(sentence + crlf + crlf);
         modifiedSentence = inFromServer.readLine();
         System.out.println(modifiedSentence);
-        }
-        //clientSocket.close(); 
+        //}
+        clientSocket.close();
     } 
 
 } 
