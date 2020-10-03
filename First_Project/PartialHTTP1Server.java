@@ -178,11 +178,39 @@ class client_handler extends Thread
                 }else{
                     String tempServerResponse = OK_headers(f);
                     if (tempServerResponse.equals("HTTP/1.0 500 Internal Server Error" + crlf + crlf)) return tempServerResponse; //Error occurred while making headers
-                    FileInputStream fileStream = new FileInputStream(f);
-                    outToClient.writeBytes(tempServerResponse);
-                    int b;
-                    while ((b = fileStream.read()) != -1){
-                        outToClient.write(b);
+                    //Read file into byte array
+                    FileInputStream fileStream = null;
+                    try {
+                        fileStream = new FileInputStream(f);
+                        long length = f.length();
+                        if (length > Integer.MAX_VALUE){
+                            throw new IOException("File is too big");
+                        }
+                        byte[] byteArray = new byte[(int)length];
+                        int offset = 0;
+                        int alreadyRead = 0;
+
+                        while (offset < byteArray.length && (alreadyRead = fileStream.read(byteArray, offset, byteArray.length - offset)) >= 0){
+                            offset += alreadyRead;
+                        }
+
+                        if (offset < byteArray.length){
+                            throw new IOException("Couldn't read complete file");
+                        }
+
+                        //Read all bytes of file into array, transfer info into socket
+                        outToClient.writeBytes(tempServerResponse);
+                        outToClient.write(byteArray, 0, byteArray.length); //Writes byte array (file) to socket
+
+                    } catch (IOException e) {
+                        //Return Internal Server Error
+                        tempServerResponse = "HTTP/1.0 500 Internal Server Error" + crlf + crlf;
+                        return tempServerResponse;
+
+                    } finally {
+                        if (fileStream != null){
+                            fileStream.close();
+                        }
                     }
                     return "";
                     //need body of file and 500 Internal Server Error
@@ -201,13 +229,49 @@ class client_handler extends Thread
                     if (tempServerResponse.equals("HTTP/1.0 500 Internal Server Error" + crlf + crlf)) return tempServerResponse; //Error occurred while making headers
                     //ONLY DO SO IF THERE IS NO HEAD
                     if (!command.equals("HEAD")){
+                        FileInputStream fileStream = null;
+                        try {
+                            fileStream = new FileInputStream(f);
+                            long length = f.length();
+                            if (length > Integer.MAX_VALUE){
+                                throw new IOException("File is too big");
+                            }
+                            byte[] byteArray = new byte[(int)length];
+                            int offset = 0;
+                            int alreadyRead = 0;
+
+                            while (offset < byteArray.length && (alreadyRead = fileStream.read(byteArray, offset, byteArray.length - offset)) >= 0){
+                                offset += alreadyRead;
+                            }
+
+                            if (offset < byteArray.length){
+                                throw new IOException("Couldn't read complete file");
+                            }
+
+                            //Read all bytes of file into array, transfer info into socket
+                            outToClient.writeBytes(tempServerResponse);
+                            outToClient.write(byteArray, 0, byteArray.length); //Writes byte array (file) to socket
+
+                        } catch (IOException e) {
+                            //Return Internal Server Error
+                            tempServerResponse = "HTTP/1.0 500 Internal Server Error" + crlf + crlf;
+                            return tempServerResponse;
+
+                        } finally {
+                            if (fileStream != null){
+                                fileStream.close();
+                            }
+                        }
+                        return "";
+                        /*
                         FileInputStream fileStream = new FileInputStream(f);
                         outToClient.writeBytes(tempServerResponse);
                         int b;
                         while ((b = fileStream.read()) != -1){
                             outToClient.write(b);
                         }
-                        return ""; 
+                        return "";
+                        */ 
                     }
                     return tempServerResponse;
                     //need body of file and 500 Internal Server Error
