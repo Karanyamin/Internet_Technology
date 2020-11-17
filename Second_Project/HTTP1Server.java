@@ -149,6 +149,11 @@ class client_handler extends Thread
         return ret;      
     }
 
+    public boolean checkPOSTHeaders(){
+
+        return true;
+    }
+
     /*
     //File the file starting from the current working directory all the way down. If file missing, return null
     public File returnFile(String url){
@@ -162,7 +167,14 @@ class client_handler extends Thread
         String[] parseHeader = next.split(": "); // was (" ", 2) (?)
         boolean proceedWithGET = true;
 
-        if (parseHeader.length == 2 && parseHeader[0].equals("If-Modified-Since") && !command.equals("HEAD")){
+        if (command.equals("POST")){
+            if (checkPOSTHeaders()){
+                //The Headers for POST are good and we can proceed
+            } else {
+                //Something is wrong with the POST headers. Return
+            }
+
+        } else if (parseHeader.length == 2 && parseHeader[0].equals("If-Modified-Since") && !command.equals("HEAD")){
             if(!hasBeenModified(url, parseHeader[1])){
                 proceedWithGET = false; //Means object hasn't been modified so we don't need to get the object
                 
@@ -340,7 +352,7 @@ class client_handler extends Thread
 }
 
 // PartialHTTP1 Server Class
-class PartialHTTP1Server 
+class HTTP1Server
 {
     //initializing the thread pool - starting with 5 
     //private static ExecutorService pool = Executors.newFixedThreadPool(5);
@@ -354,7 +366,7 @@ class PartialHTTP1Server
         //check if there is one argument (port number)
         if (args.length != 1) 
         {
-            System.err.println("Usage: java PartialHTTP1Server <port number>");
+            System.err.println("Usage: java HTTP1Server <port number>");
             System.exit(1);
         }
         //create server socket given port number
