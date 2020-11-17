@@ -3,16 +3,13 @@ import java.net.*;
 import java.util.*;
 import java.net.ServerSocket;
 import java.net.Socket;
-import java.util.StringTokenizer;
 import java.lang.String;
 import java.lang.*;
 import java.io.IOException;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.*;
 import java.util.ArrayList;
-import java.text.DateFormat;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.text.ParseException;
@@ -172,7 +169,9 @@ class client_handler extends Thread
             }
             if(proceedWithGET){
                 URL resource = getClass().getResource(url);
-                File f = new File(resource.getPath());
+                String actualPath = URLDecoder.decode(resource.getPath(), "UTF-8");
+                System.out.println("Trying to open file: [" + actualPath + "]");
+                File f = new File(actualPath);
                 if(!f.canRead()){
                     return ("HTTP/1.0 403 Forbidden" + crlf + crlf);
                 }else{
@@ -221,7 +220,9 @@ class client_handler extends Thread
             if(resource == null)
                 return ("HTTP/1.0 404 Not Found" + crlf + crlf);
             else{
-                File f = new File(resource.getPath());
+                String actualPath = URLDecoder.decode(resource.getPath(), "UTF-8");
+                System.out.println("Trying to open file: [" + actualPath + "]");
+                File f = new File(actualPath);
                 if(!f.canRead()){
                     return ("HTTP/1.0 403 Forbidden" + crlf + crlf);
                 }else{
