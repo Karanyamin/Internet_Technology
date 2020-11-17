@@ -149,9 +149,14 @@ class client_handler extends Thread
         return ret;      
     }
 
-    public boolean checkPOSTHeaders(){
+    //Returns the content length if all the headers are good
+    //and return 0 if some header is false
+    //Writes "HTTP/1.0 411 Length Required"
+    //or "HTTP/1.0 405 Method Not Allowed"
+    //or "HTTP/1.0 500 Internal Server Error" into server_response if something is wrong
+    public int checkPOSTHeaders(String url){
 
-        return true;
+        return 0;
     }
 
     /*
@@ -166,10 +171,12 @@ class client_handler extends Thread
         String next = inFromClient.readLine();
         String[] parseHeader = next.split(": "); // was (" ", 2) (?)
         boolean proceedWithGET = true;
+        int payloadLength = 0;
 
         if (command.equals("POST")){
-            if (checkPOSTHeaders()){
+            if ((payloadLength = checkPOSTHeaders(url)) != 0){
                 //The Headers for POST are good and we can proceed
+
             } else {
                 //Something is wrong with the POST headers. Return
             }
