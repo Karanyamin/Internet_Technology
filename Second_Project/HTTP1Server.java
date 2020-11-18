@@ -164,6 +164,17 @@ class client_handler extends Thread
         return null;
     }
 
+    public byte[] runScript(String url){
+
+        return null;
+    }
+
+    //Return all the necessary headers for a successful POST operation
+    public String OKPOSTHeaders(String url){
+
+        return null;
+    }
+
     /*
     //File the file starting from the current working directory all the way down. If file missing, return null
     public File returnFile(String url){
@@ -189,11 +200,20 @@ class client_handler extends Thread
                     payloadLength--;
                 }
                 String parameters = decodeParameters(new String(payload));
-
                 System.out.println("Payload is [" + parameters + "]");
-                server_response = "";
+                //Now that we have the parameters, run the script and get the STDOUT
+                byte[] result = runScript(url);
+                if (result.length == 0){
+                    //No output from script, return 204 No Content
+                    return "HTTP/1.0 204 No Content" + crlf + crlf;
+                }
+                String tempServerResponse = OKPOSTHeaders(url);
+                outToClient.writeBytes(tempServerResponse);
+                outToClient.write(result, 0, result.length); //Writes output of cgi to socket
+                return "";
             } else {
-                //Something is wrong with the POST headers. Return
+                //Something is wrong with the POST headers. Return whatever is in server_response (Error Code)
+                return server_response;
             }
 
         } else if (parseHeader.length == 2 && parseHeader[0].equals("If-Modified-Since") && !command.equals("HEAD")){
@@ -353,17 +373,11 @@ class client_handler extends Thread
             printHTTPLine(client_request);//DELETE FOR SUBMISSION
 
 
-            try {
-                if(validRequestLine(client_request)){
-                    //Request line is OK, and first line in http response is "HTTP/1.0 200 OK"
-                    //We know the method is going to be either HEAD POST or GET
-                    server_response = handleRequest(client_request[0], client_request[1], client_request[2]);
-                }
-            } catch (SocketTimeoutException e){
-                System.out.println("Socket did not response in " + timeout + " milliseconds");
-                outToClient.writeBytes("HTTP/1.0 408 Request Timeout" + crlf + crlf);
-                s.close();
-                return;
+
+            if(validRequestLine(client_request)){
+                //Request line is OK, and first line in http response is "HTTP/1.0 200 OK"
+                //We know the method is going to be either HEAD POST or GET
+                server_response = handleRequest(client_request[0], client_request[1], client_request[2]);
             }
 
              
