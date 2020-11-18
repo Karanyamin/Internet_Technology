@@ -165,6 +165,11 @@ class client_handler extends Thread
     }
 
     public byte[] runScript(String url, String parameters){
+        ProcessBuilder process = new ProcessBuilder(url);
+        Map<String, String> environment = process.environment();
+        for (Map.Entry<String, String> entry : environment.entrySet()){
+            System.out.println("Key = " + entry.getKey() + ", Value = " + entry.getValue());
+        }
 
         return null;
     }
@@ -203,7 +208,7 @@ class client_handler extends Thread
                 System.out.println("Payload is [" + parameters + "]");
                 //Now that we have the parameters, run the script and get the STDOUT
                 byte[] result = runScript(url, parameters);
-                if (result.length == 0){
+                if (result == null){
                     //No output from script, return 204 No Content
                     return "HTTP/1.0 204 No Content" + crlf + crlf;
                 }
