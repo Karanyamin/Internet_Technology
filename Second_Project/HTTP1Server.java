@@ -154,7 +154,7 @@ class client_handler extends Thread
     //Writes "HTTP/1.0 411 Length Required"
     //or "HTTP/1.0 405 Method Not Allowed"
     //or "HTTP/1.0 500 Internal Server Error" into server_response if something is wrong
-    public boolean checkPOSTHeaders(String url, HashMap<String, String> map)throws IOException{ 
+    public boolean checkPOSTHeaders(String url, HashMap<String, String> map) throws IOException{
 
         String next = inFromClient.readLine();
         String[] parseHeader = next.split(": "); // was (" ", 2) (?)
@@ -204,7 +204,7 @@ class client_handler extends Thread
         //String[] parseHeader = next.split(": "); // was (" ", 2) (?)
         boolean proceedWithGET = true;
 
-        if (command.equals("GEGE")){
+        if (command.equals("POST")){
             //The Headers for POST are good and we can proceed
             //Get the payload
             int payloadLength = Integer.parseInt(headers.get("Content-Length"));
