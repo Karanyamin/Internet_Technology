@@ -149,14 +149,68 @@ class client_handler extends Thread
         return ret;      
     }
 
-    //Returns the content length if all the headers are good
-    //and return 0 if some header is false
+    //Returns true if all the headers are good
+    //and return false if some header is false
     //Writes "HTTP/1.0 411 Length Required"
     //or "HTTP/1.0 405 Method Not Allowed"
     //or "HTTP/1.0 500 Internal Server Error" into server_response if something is wrong
-    public int checkPOSTHeaders(String url, String[] parseHeader){
+    public boolean checkPOSTHeaders(String url, HashMap<String, String> map) throws IOException{
+        boolean validContentLength = false, validContentType = false; //these two headers are necessary for POST request to be valid
+        String next = inFromClient.readLine();
+        while(next != null && !(next.equals(""))){
+            System.out.println(next);
+            String[] parseHeader = next.split(": ");
+            if (parseHeader.length == 2){
+                if(parseHeader[0].equals("Content-Length")){
+                    if(parseHeader[1] != null){
+                        try{//check if content-length is a numeric value
+                            double d = Double.parseDouble(parseHeader[1]);
+                            }catch(NumberFormatException nfe){
+                                server_response = "HTTP/1.0 411 Length Required" + crlf + crlf;
+                                return false;
+                            }
+                        validContentLength = true;
+                    }else{
+                        server_response = "HTTP/1.0 411 Length Required" + crlf + crlf;
+                        return false;
+                    }  
+                }else if(parseHeader[0].equals("Content-Type"))
+                    validContentType = true;
+    
+                map.put(parseHeader[0], parseHeader[1]);
+            }
+            next = inFromClient.readLine();
+        }
+        if(validContentLength && validContentType) //both content length and type exist and are valid
+            return true;
+        else if(!validContentLength){ //request doesn't have "Content-Length" header
+            server_response = "HTTP/1.0 411 Length Required" + crlf + crlf;
+            return false;
+        }
+        //request doesn't have "Content-Type" header
+        server_response = "HTTP/1.0 500 Internal Server Error" + crlf + crlf; 
+        return false;
+    }
 
-        return 0;
+    //Decode Parameters
+    public String decodeParameters(String parameters){
+        return null;
+    }
+
+    public byte[] runScript(String url, String parameters){
+        ProcessBuilder process = new ProcessBuilder(url);
+        Map<String, String> environment = process.environment();
+        for (Map.Entry<String, String> entry : environment.entrySet()){
+            System.out.println("Key = " + entry.getKey() + ", Value = " + entry.getValue());
+        }
+
+        return null;
+    }
+
+    //Return all the necessary headers for a successful POST operation
+    public String OKPOSTHeaders(String url){
+
+        return null;
     }
 
     /*
@@ -168,21 +222,45 @@ class client_handler extends Thread
     public String handleRequest(String command, String url, String version) throws IOException {
         //Code that handles a GET or POST or HEAD command goes here
         //Check if there is a Conditional GET
-        String next = inFromClient.readLine();
-        String[] parseHeader = next.split(": "); // was (" ", 2) (?)
+        //String next = inFromClient.readLine();
+        
+        HashMap<String, String> headers = new HashMap<String, String>();
+        if (!checkPOSTHeaders(url, headers)){
+            //One of the headers is wrong, return error code in server response
+            return server_response;
+        }else{
+            return "VALID" + crlf + crlf;
+        }
+        //All the headers are good and are in the headers map
+        //String[] parseHeader = next.split(": "); // was (" ", 2) (?)
+        /*
         boolean proceedWithGET = true;
-        int payloadLength = 0;
 
         if (command.equals("POST")){
-            if ((payloadLength = checkPOSTHeaders(url, parseHeader)) != 0){
-                //The Headers for POST are good and we can proceed
-
-            } else {
-                //Something is wrong with the POST headers. Return
+            //The Headers for POST are good and we can proceed
+            //Get the payload
+            int payloadLength = Integer.parseInt(headers.get("Content-Length"));
+            char[] payload = new char[payloadLength];
+            int counter = 0;
+            while (payloadLength > 0){
+                payload[counter++] = (char)inFromClient.read();
+                payloadLength--;
             }
+            String parameters = decodeParameters(new String(payload));
+            System.out.println("Payload is [" + parameters + "]");
+            //Now that we have the parameters, run the script and get the STDOUT
+            byte[] result = runScript(url, parameters);
+            if (result == null){
+                //No output from script, return 204 No Content
+                return "HTTP/1.0 204 No Content" + crlf + crlf;
+            }
+            String tempServerResponse = OKPOSTHeaders(url);
+            outToClient.writeBytes(tempServerResponse);
+            outToClient.write(result, 0, result.length); //Writes output of cgi to socket
+            return "";
 
-        } else if (parseHeader.length == 2 && parseHeader[0].equals("If-Modified-Since") && !command.equals("HEAD")){
-            if(!hasBeenModified(url, parseHeader[1])){
+        } else if (headers.containsKey("If-Modified-Since") && !command.equals("HEAD")){
+            if(!hasBeenModified(url, headers.get("If-Modified-Since"))){
                 proceedWithGET = false; //Means object hasn't been modified so we don't need to get the object
                 
             }
@@ -291,7 +369,7 @@ class client_handler extends Thread
                             outToClient.write(b);
                         }
                         return "";
-                        */ 
+                        */ /*
                     }
                     return tempServerResponse;
                     //need body of file and 500 Internal Server Error
@@ -300,7 +378,7 @@ class client_handler extends Thread
             
         }
         
-        return server_response;
+        return server_response;*/
     }
 
     public void printHTTPLine(String[] client_request){
@@ -344,6 +422,7 @@ class client_handler extends Thread
                 //We know the method is going to be either HEAD POST or GET
                 server_response = handleRequest(client_request[0], client_request[1], client_request[2]);
             }
+
              
             if (server_response.length() != 0){
                 System.out.println("Writing to client: " + server_response);
