@@ -159,6 +159,11 @@ class client_handler extends Thread
         return 0;
     }
 
+    //Decode Parameters
+    public String decodeParameters(String parameters){
+        return null;
+    }
+
     /*
     //File the file starting from the current working directory all the way down. If file missing, return null
     public File returnFile(String url){
@@ -176,7 +181,17 @@ class client_handler extends Thread
         if (command.equals("POST")){
             if ((payloadLength = checkPOSTHeaders(url)) != 0){
                 //The Headers for POST are good and we can proceed
+                //Get the payload
+                char[] payload = new char[payloadLength];
+                int counter = 0;
+                while (payloadLength > 0){
+                    payload[counter++] = (char)inFromClient.read();
+                    payloadLength--;
+                }
+                String parameters = decodeParameters(new String(payload));
 
+                System.out.println("Payload is [" + parameters + "]");
+                server_response = "";
             } else {
                 //Something is wrong with the POST headers. Return
             }
@@ -338,12 +353,19 @@ class client_handler extends Thread
             printHTTPLine(client_request);//DELETE FOR SUBMISSION
 
 
-
-            if(validRequestLine(client_request)){
-                //Request line is OK, and first line in http response is "HTTP/1.0 200 OK"
-                //We know the method is going to be either HEAD POST or GET
-                server_response = handleRequest(client_request[0], client_request[1], client_request[2]);
+            try {
+                if(validRequestLine(client_request)){
+                    //Request line is OK, and first line in http response is "HTTP/1.0 200 OK"
+                    //We know the method is going to be either HEAD POST or GET
+                    server_response = handleRequest(client_request[0], client_request[1], client_request[2]);
+                }
+            } catch (SocketTimeoutException e){
+                System.out.println("Socket did not response in " + timeout + " milliseconds");
+                outToClient.writeBytes("HTTP/1.0 408 Request Timeout" + crlf + crlf);
+                s.close();
+                return;
             }
+
              
             if (server_response.length() != 0){
                 System.out.println("Writing to client: " + server_response);
