@@ -161,11 +161,12 @@ class client_handler extends Thread
         if (parseHeader.length == 2){
             map.put(parseHeader[0], parseHeader[1]);
         }
-        map.put("CONTENT_LENGTH", "35");
-        map.put("SCRIPT_NAME", "/cgi_bin/print.cgi");
-        map.put("SERVER_NAME", "RANDOM");
-        map.put("HTTP_FORM", "You");
-        map.put("HTTP_USER_AGENT", "me");
+        map.put("CONTENT_LENGTH", "11");
+        map.put("SCRIPT_NAME", "/cgi_bin/param.cgi");
+        map.put("SERVER_NAME", new String(InetAddress.getLocalHost().getAddress()));
+        map.put("SERVER_PORT", "3456");
+        map.put("HTTP_FORM", "me@mycomputer");
+        map.put("HTTP_USER_AGENT", "telnet");
         return true;
     }
 
