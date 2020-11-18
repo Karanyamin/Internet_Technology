@@ -159,6 +159,22 @@ class client_handler extends Thread
         return 0;
     }
 
+    //Decode Parameters
+    public String decodeParameters(String parameters){
+        return null;
+    }
+
+    public byte[] runScript(String url, String parameters){
+
+        return null;
+    }
+
+    //Return all the necessary headers for a successful POST operation
+    public String OKPOSTHeaders(String url){
+
+        return null;
+    }
+
     /*
     //File the file starting from the current working directory all the way down. If file missing, return null
     public File returnFile(String url){
@@ -176,9 +192,28 @@ class client_handler extends Thread
         if (command.equals("POST")){
             if ((payloadLength = checkPOSTHeaders(url)) != 0){
                 //The Headers for POST are good and we can proceed
-
+                //Get the payload
+                char[] payload = new char[payloadLength];
+                int counter = 0;
+                while (payloadLength > 0){
+                    payload[counter++] = (char)inFromClient.read();
+                    payloadLength--;
+                }
+                String parameters = decodeParameters(new String(payload));
+                System.out.println("Payload is [" + parameters + "]");
+                //Now that we have the parameters, run the script and get the STDOUT
+                byte[] result = runScript(url, parameters);
+                if (result.length == 0){
+                    //No output from script, return 204 No Content
+                    return "HTTP/1.0 204 No Content" + crlf + crlf;
+                }
+                String tempServerResponse = OKPOSTHeaders(url);
+                outToClient.writeBytes(tempServerResponse);
+                outToClient.write(result, 0, result.length); //Writes output of cgi to socket
+                return "";
             } else {
-                //Something is wrong with the POST headers. Return
+                //Something is wrong with the POST headers. Return whatever is in server_response (Error Code)
+                return server_response;
             }
 
         } else if (parseHeader.length == 2 && parseHeader[0].equals("If-Modified-Since") && !command.equals("HEAD")){
@@ -344,6 +379,7 @@ class client_handler extends Thread
                 //We know the method is going to be either HEAD POST or GET
                 server_response = handleRequest(client_request[0], client_request[1], client_request[2]);
             }
+
              
             if (server_response.length() != 0){
                 System.out.println("Writing to client: " + server_response);
