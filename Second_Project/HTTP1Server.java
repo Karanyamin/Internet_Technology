@@ -164,7 +164,7 @@ class client_handler extends Thread
         return null;
     }
 
-    public byte[] runScript(String url){
+    public byte[] runScript(String url, String parameters){
 
         return null;
     }
@@ -202,7 +202,7 @@ class client_handler extends Thread
                 String parameters = decodeParameters(new String(payload));
                 System.out.println("Payload is [" + parameters + "]");
                 //Now that we have the parameters, run the script and get the STDOUT
-                byte[] result = runScript(url);
+                byte[] result = runScript(url, parameters);
                 if (result.length == 0){
                     //No output from script, return 204 No Content
                     return "HTTP/1.0 204 No Content" + crlf + crlf;
