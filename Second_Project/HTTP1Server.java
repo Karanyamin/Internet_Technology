@@ -174,10 +174,15 @@ class client_handler extends Thread
         return null;
     }
 
-    public byte[] runScript(String url, String parameters, HashMap<String, String> headerMap){
+    /*
+    This method takes the url for the file and the parameters and
+    all the environment variables and creates a Process. Returns the bytes from STDOUT
+
+     */
+    public byte[] runScript(String url, String parameters, HashMap<String, String> headerMap) throws IOException {
         ProcessBuilder process = new ProcessBuilder(url);
         Map<String, String> environment = process.environment();
-
+        //Set up environment variables
         for (Map.Entry<String, String> entry : headerMap.entrySet()){
             if (!entry.getKey().equals("If-Modified-Since")){
                 environment.put(entry.getKey(), entry.getValue());
@@ -186,6 +191,20 @@ class client_handler extends Thread
         for (Map.Entry<String, String> entry : environment.entrySet()){
             System.out.println("Key = " + entry.getKey() + ", Value = " + entry.getValue());
         }
+        //Set up command and start
+        process.command(url);
+        Process instance = process.start();
+
+        //Configure Input and Output streams
+        BufferedWriter writer = new BufferedWriter(new OutputStreamWriter(instance.getOutputStream()));
+        BufferedReader reader = new BufferedReader(new InputStreamReader(instance.getInputStream()));
+        writer.write(parameters);
+        StringBuilder result = new StringBuilder();
+        char c;
+        while ((c = (char)reader.read()) != -1){
+            result.append(c);
+        }
+        System.out.println(result.toString());
         return null;
     }
 
