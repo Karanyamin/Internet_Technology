@@ -149,14 +149,14 @@ class client_handler extends Thread
         return ret;      
     }
 
-    //Returns the content length if all the headers are good
-    //and return 0 if some header is false
+    //Returns true if all the headers are good
+    //and return false if some header is false
     //Writes "HTTP/1.0 411 Length Required"
     //or "HTTP/1.0 405 Method Not Allowed"
     //or "HTTP/1.0 500 Internal Server Error" into server_response if something is wrong
-    public int checkPOSTHeaders(String url){
+    public boolean checkPOSTHeaders(String url, HashMap<String, String> map){
 
-        return 0;
+        return false;
     }
 
     //Decode Parameters
@@ -189,40 +189,41 @@ class client_handler extends Thread
     public String handleRequest(String command, String url, String version) throws IOException {
         //Code that handles a GET or POST or HEAD command goes here
         //Check if there is a Conditional GET
-        String next = inFromClient.readLine();
-        String[] parseHeader = next.split(": "); // was (" ", 2) (?)
+        //String next = inFromClient.readLine();
+        HashMap<String, String> headers = new HashMap<String, String>();
+        if (!checkPOSTHeaders(url, headers)){
+            //One of the headers is wrong, return error code in server response
+            return server_response;
+        }
+        //All the headers are good and are in the headers map
+        //String[] parseHeader = next.split(": "); // was (" ", 2) (?)
         boolean proceedWithGET = true;
-        int payloadLength = 0;
 
         if (command.equals("POST")){
-            if ((payloadLength = checkPOSTHeaders(url)) != 0){
-                //The Headers for POST are good and we can proceed
-                //Get the payload
-                char[] payload = new char[payloadLength];
-                int counter = 0;
-                while (payloadLength > 0){
-                    payload[counter++] = (char)inFromClient.read();
-                    payloadLength--;
-                }
-                String parameters = decodeParameters(new String(payload));
-                System.out.println("Payload is [" + parameters + "]");
-                //Now that we have the parameters, run the script and get the STDOUT
-                byte[] result = runScript(url, parameters);
-                if (result == null){
-                    //No output from script, return 204 No Content
-                    return "HTTP/1.0 204 No Content" + crlf + crlf;
-                }
-                String tempServerResponse = OKPOSTHeaders(url);
-                outToClient.writeBytes(tempServerResponse);
-                outToClient.write(result, 0, result.length); //Writes output of cgi to socket
-                return "";
-            } else {
-                //Something is wrong with the POST headers. Return whatever is in server_response (Error Code)
-                return server_response;
+            //The Headers for POST are good and we can proceed
+            //Get the payload
+            int payloadLength = Integer.parseInt(headers.get("Content-Length"));
+            char[] payload = new char[payloadLength];
+            int counter = 0;
+            while (payloadLength > 0){
+                payload[counter++] = (char)inFromClient.read();
+                payloadLength--;
             }
+            String parameters = decodeParameters(new String(payload));
+            System.out.println("Payload is [" + parameters + "]");
+            //Now that we have the parameters, run the script and get the STDOUT
+            byte[] result = runScript(url, parameters);
+            if (result == null){
+                //No output from script, return 204 No Content
+                return "HTTP/1.0 204 No Content" + crlf + crlf;
+            }
+            String tempServerResponse = OKPOSTHeaders(url);
+            outToClient.writeBytes(tempServerResponse);
+            outToClient.write(result, 0, result.length); //Writes output of cgi to socket
+            return "";
 
-        } else if (parseHeader.length == 2 && parseHeader[0].equals("If-Modified-Since") && !command.equals("HEAD")){
-            if(!hasBeenModified(url, parseHeader[1])){
+        } else if (headers.containsKey("If-Modified-Since") && !command.equals("HEAD")){
+            if(!hasBeenModified(url, headers.get("If-Modified-Since"))){
                 proceedWithGET = false; //Means object hasn't been modified so we don't need to get the object
                 
             }
