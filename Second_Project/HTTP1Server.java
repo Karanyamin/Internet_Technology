@@ -195,7 +195,6 @@ class client_handler extends Thread
             }
             next = inFromClient.readLine();
         }
-<<<<<<< HEAD
         //Put in all the other Environment Variables
         map.put("SCRIPT_NAME", url);
         map.put("SERVER_NAME", InetAddress.getLocalHost().getHostAddress().trim());
@@ -253,9 +252,6 @@ class client_handler extends Thread
                 return false;
         }
         
-=======
-        return true;
->>>>>>> f32d045b6f432c0d9b649ef2e0f7a034eb6cf837
     }
 
     //Decode Parameters
