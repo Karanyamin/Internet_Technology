@@ -161,18 +161,18 @@ class client_handler extends Thread
         if (parseHeader.length == 2){
             map.put(parseHeader[0], parseHeader[1]);
         }
-        map.put("CONTENT_LENGTH", "11");
+        map.put("CONTENT_LENGTH", "34");
         map.put("SCRIPT_NAME", "/cgi_bin/param.cgi");
-        map.put("SERVER_NAME", new String(InetAddress.getLocalHost().getAddress()));
-        map.put("SERVER_PORT", "3456");
-        map.put("HTTP_FORM", "me@mycomputer");
+        map.put("SERVER_NAME", InetAddress.getLocalHost().getHostAddress().trim());
+        map.put("SERVER_PORT", "3453");
+        map.put("HTTP_FROM", "me@mycomputer");
         map.put("HTTP_USER_AGENT", "telnet");
         return true;
     }
 
     //Decode Parameters
     public String decodeParameters(String parameters){
-        return null;
+        return parameters;
     }
 
     /*
@@ -181,7 +181,7 @@ class client_handler extends Thread
 
      */
     public byte[] runScript(String url, String parameters, HashMap<String, String> headerMap) throws IOException {
-        ProcessBuilder process = new ProcessBuilder(url);
+        ProcessBuilder process = new ProcessBuilder("." + url);
         Map<String, String> environment = process.environment();
         //Set up environment variables
         for (Map.Entry<String, String> entry : headerMap.entrySet()){
@@ -192,20 +192,36 @@ class client_handler extends Thread
         for (Map.Entry<String, String> entry : environment.entrySet()){
             System.out.println("Key = " + entry.getKey() + ", Value = " + entry.getValue());
         }
-        //Set up command and start
-        process.command(url);
+        //Start process
         Process instance = process.start();
-
-        //Configure Input and Output streams
-        BufferedWriter writer = new BufferedWriter(new OutputStreamWriter(instance.getOutputStream()));
-        BufferedReader reader = new BufferedReader(new InputStreamReader(instance.getInputStream()));
-        writer.write(parameters);
-        StringBuilder result = new StringBuilder();
-        char c;
-        while ((c = (char)reader.read()) != -1){
-            result.append(c);
+        BufferedWriter writer = null;
+        try{
+            writer = new BufferedWriter(new OutputStreamWriter(instance.getOutputStream()));
+            writer.write(parameters);
+            writer.flush();
+            writer.close();
+        } catch(IOException e) {
+            System.out.println("The exception occured while writing");
+            //e.printStackTrace();
         }
-        System.out.println(result.toString());
+        
+        try {
+            BufferedReader reader = 
+                new BufferedReader(new InputStreamReader(instance.getInputStream()));
+            StringBuilder builder = new StringBuilder();
+            String line = null;
+            while ( (line = reader.readLine()) != null) {
+                builder.append(line);
+                builder.append(System.getProperty("line.separator"));
+            }
+            String result = builder.toString();
+            reader.close();
+            System.out.println(result);
+        } catch (IOException e){
+            System.out.println("The exception occured while reading");
+            //e.printStackTrace();
+        }
+        
         return null;
     }
 
@@ -238,6 +254,7 @@ class client_handler extends Thread
             //The Headers for POST are good and we can proceed
             //Get the payload
             int payloadLength = Integer.parseInt(headers.get("CONTENT_LENGTH"));
+            System.out.println("Length of paylod " + payloadLength);
             char[] payload = new char[payloadLength];
             int counter = 0;
             while (payloadLength > 0){
@@ -245,7 +262,7 @@ class client_handler extends Thread
                 payloadLength--;
             }
             String parameters = decodeParameters(new String(payload));
-            System.out.println("Payload is [" + parameters + "]");
+            System.out.println("Payload is [" + parameters + "], and actual length " + parameters.length());
             //Now that we have the parameters, run the script and get the STDOUT
             byte[] result = runScript(url, parameters, headers);
             if (result == null){
