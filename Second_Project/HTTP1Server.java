@@ -155,18 +155,116 @@ class client_handler extends Thread
     //or "HTTP/1.0 405 Method Not Allowed"
     //or "HTTP/1.0 500 Internal Server Error" into server_response if something is wrong
     public boolean checkPOSTHeaders(String url, HashMap<String, String> map) throws IOException{
-
+        boolean validContentLength = false, validContentType = false; //these two headers are necessary for POST request to be valid
         String next = inFromClient.readLine();
-        String[] parseHeader = next.split(": "); // was (" ", 2) (?)
-        if (parseHeader.length == 2){
-            map.put(parseHeader[0], parseHeader[1]);
+        while(next != null && !(next.equals(""))){
+            //System.out.println(next);
+            String[] parseHeader = next.split(": ");
+            if (parseHeader.length == 2){
+                if(parseHeader[0].equals("Content-Length")){
+                    if(parseHeader[1] != null){
+                        try{//check if content-length is a numeric value
+                            int d = Integer.parseInt(parseHeader[1]);
+                            //Check is length is negative
+                            if (d < 0) throw new NumberFormatException("Negative number");
+                        }catch(NumberFormatException nfe){
+                            server_response = "HTTP/1.0 411 Length Required" + crlf + crlf;
+                            return false;
+                        }
+                        validContentLength = true;
+                        map.put("CONTENT_LENGTH", parseHeader[1]); //Puts CONTENT_LENGTH in map
+                    }else{
+                        server_response = "HTTP/1.0 411 Length Required" + crlf + crlf;
+                        return false;
+                    }
+                } else if(parseHeader[0].equals("Content-Type")){
+                    if (parseHeader[1] != null && parseHeader[1].equals("application/x-www-form-urlencoded")){
+                        validContentType = true;
+                    } else {
+                        //Invalid content-type
+                        server_response = "HTTP/1.0 500 Internal Server Error" + crlf + crlf;
+                        return false;
+                    }
+                } else if (parseHeader[0].equals("From")){
+                    map.put("HTTP_FROM", parseHeader[1]);
+                } else if (parseHeader[0].equals("User-Agent")){
+                    map.put("HTTP_USER_AGENT", parseHeader[1]);
+                } else if (parseHeader[0].equals("If-Modified-Since")){
+                    map.put("If-Modified-Since", parseHeader[1]);
+                }
+            }
+            next = inFromClient.readLine();
         }
-        return true;
+        //Put in all the other Environment Variables
+        map.put("SCRIPT_NAME", url);
+        map.put("SERVER_NAME", InetAddress.getLocalHost().getHostAddress().trim());
+        map.put("SERVER_PORT", String.valueOf(s.getPort()));
+
+        if(validContentLength && validContentType) //both content length and type exist and are valid
+            return true;
+        else if(!validContentLength){ //request doesn't have "Content-Length" header
+            server_response = "HTTP/1.0 411 Length Required" + crlf + crlf;
+            return false;
+        } else {
+            //request doesn't have "Content-Type" header
+            server_response = "HTTP/1.0 500 Internal Server Error" + crlf + crlf;
+        } 
+        return false;
+    }
+
+    public boolean escapedCharacters(char c){
+        switch (c){
+            case '!':
+                return true;
+            case '*':
+                return true;
+            case '\'':
+                return true;
+            case '(':
+                return true;
+            case ')':
+                return true;
+            case ';':
+                return true;
+            case ':':
+                return true;
+            case '@':
+                return true;
+            case '$':
+                return true;
+            case '+':
+                return true;
+            case ',':
+                return true;
+            case '/':
+                return true;
+            case '?':
+                return true;
+            case '#':
+                return true;
+            case '[':
+                return true;
+            case ']':
+                return true;
+            case ' ':
+                return true;
+            default:
+                return false;
+        }
+        
     }
 
     //Decode Parameters
     public String decodeParameters(String parameters){
-        return parameters;
+        System.out.println("Payload before decoding [" + parameters + "]");
+        String decodedString = "";
+        int index;
+        while ((index = parameters.indexOf('!')) != -1 && index < (parameters.length() - 1) && escapedCharacters(parameters.charAt(index + 1))){
+            //Theres a character still encoded...decode it
+            decodedString += parameters.substring(0, index) + parameters.charAt(index + 1);
+            parameters = parameters.substring(index + 2);
+        }
+        return decodedString + parameters;
     }
 
     /*
@@ -198,8 +296,10 @@ class client_handler extends Thread
             System.out.println("The exception occured while writing");
             //e.printStackTrace();
         }
-        
+        //String result = "";
+        byte[] result = null;
         try {
+            /*
             BufferedReader reader = 
                 new BufferedReader(new InputStreamReader(instance.getInputStream()));
             StringBuilder builder = new StringBuilder();
@@ -208,21 +308,69 @@ class client_handler extends Thread
                 builder.append(line);
                 builder.append(System.getProperty("line.separator"));
             }
-            String result = builder.toString();
+            result = builder.toString();
             reader.close();
             System.out.println(result);
+            */
+            DataInputStream reader = new DataInputStream(instance.getInputStream());
+            ByteArrayOutputStream baos = new ByteArrayOutputStream();
+            byte[] buffer = new byte[4096];
+            while (true){
+                int n = reader.read(buffer);
+                if (n < 0) break;
+                baos.write(buffer, 0, n);
+            }
+            result = baos.toByteArray();
         } catch (IOException e){
             System.out.println("The exception occured while reading");
             //e.printStackTrace();
         }
         
-        return null;
+        //Check if no output
+        if (result.length == 0) return null;
+        
+        return result;
     }
 
     //Return all the necessary headers for a successful POST operation
-    public String OKPOSTHeaders(String url){
+    public String OKPOSTHeaders(int contentLengthSize, HashMap<String, String> map){
 
-        return null;
+        //Response OK line
+        String result = "HTTP/1.0 200 OK" + crlf;
+        /*
+        //All necessary headers
+        if (map.containsKey("HTTP_FROM")){
+            result += "From: " + map.get("HTTP_FROM") + crlf;
+        }
+
+        if (map.containsKey("HTTP_USER_AGENT")){
+            result += "User-Agent: " + map.get("HTTP_USER_AGENT") + crlf;
+        }
+        */
+        result += "Allow: GET, POST, HEAD" + crlf;
+        result += "Expires: Sat, 21 Jul 2021 11:00:00 GMT" + crlf;
+        result += "Content-Length: " + contentLengthSize + crlf;
+        result += "Content-Type: text/html" + crlf + crlf;
+
+        return result;
+    }
+
+    //Checks if a file can be executed
+    public boolean canExecute(String url){
+        File file = new File("." + url);
+        if (file.canExecute()) return true;
+
+        return false;
+    }
+
+    public boolean isCGIScript(String url){
+        String extension = "";
+        int index = url.lastIndexOf('.');
+        if (index >= 0 ){
+            extension = url.substring(index+1);
+            if (extension.equals("cgi")) return true;
+        }
+        return false;
     }
 
     /*
@@ -236,7 +384,7 @@ class client_handler extends Thread
         //Check if there is a Conditional GET
         //String next = inFromClient.readLine();
         HashMap<String, String> headers = new HashMap<String, String>();
-        if (!checkPOSTHeaders(url, headers)){
+        if (!checkPOSTHeaders(url, headers) && command.equals("POST")){
             //One of the headers is wrong, return error code in server response
             return server_response;
         }
@@ -245,6 +393,18 @@ class client_handler extends Thread
         boolean proceedWithGET = true;
 
         if (command.equals("POST")){
+            //Check if url is a cgi script
+            if (!isCGIScript(url)){
+                return "HTTP/1.0 500 Method Not Allowed";
+            }
+
+            //Check if the cgi script can be executed
+            if (!canExecute(url)){
+                return "HTTP/1.0 403 Forbidden";
+            }
+            
+            //Remove If-Modified-Since header if in map
+            headers.remove("If-Modified-Since");
             //The Headers for POST are good and we can proceed
             //Get the payload
             int payloadLength = Integer.parseInt(headers.get("CONTENT_LENGTH"));
@@ -257,13 +417,14 @@ class client_handler extends Thread
             }
             String parameters = decodeParameters(new String(payload));
             System.out.println("Payload is [" + parameters + "], and actual length " + parameters.length());
+            headers.put("CONTENT_LENGTH", String.valueOf(parameters.length()));
             //Now that we have the parameters, run the script and get the STDOUT
             byte[] result = runScript(url, parameters, headers);
             if (result == null){
                 //No output from script, return 204 No Content
                 return "HTTP/1.0 204 No Content" + crlf + crlf;
             }
-            String tempServerResponse = OKPOSTHeaders(url);
+            String tempServerResponse = OKPOSTHeaders(result.length, headers);
             outToClient.writeBytes(tempServerResponse);
             outToClient.write(result, 0, result.length); //Writes output of cgi to socket
             return "";
