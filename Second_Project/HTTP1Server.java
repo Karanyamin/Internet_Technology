@@ -161,21 +161,67 @@ class client_handler extends Thread
         if (parseHeader.length == 2){
             map.put(parseHeader[0], parseHeader[1]);
         }
+        map.put("CONTENT_LENGTH", "34");
+        map.put("SCRIPT_NAME", "/cgi_bin/param.cgi");
+        map.put("SERVER_NAME", InetAddress.getLocalHost().getHostAddress().trim());
+        map.put("SERVER_PORT", "3453");
+        map.put("HTTP_FROM", "me@mycomputer");
+        map.put("HTTP_USER_AGENT", "telnet");
         return true;
     }
 
     //Decode Parameters
     public String decodeParameters(String parameters){
-        return null;
+        return parameters;
     }
 
-    public byte[] runScript(String url, String parameters){
-        ProcessBuilder process = new ProcessBuilder(url);
+    /*
+    This method takes the url for the file and the parameters and
+    all the environment variables and creates a Process. Returns the bytes from STDOUT
+
+     */
+    public byte[] runScript(String url, String parameters, HashMap<String, String> headerMap) throws IOException {
+        ProcessBuilder process = new ProcessBuilder("." + url);
         Map<String, String> environment = process.environment();
+        //Set up environment variables
+        for (Map.Entry<String, String> entry : headerMap.entrySet()){
+            if (!entry.getKey().equals("If-Modified-Since")){
+                environment.put(entry.getKey(), entry.getValue());
+            }
+        }
         for (Map.Entry<String, String> entry : environment.entrySet()){
             System.out.println("Key = " + entry.getKey() + ", Value = " + entry.getValue());
         }
-
+        //Start process
+        Process instance = process.start();
+        BufferedWriter writer = null;
+        try{
+            writer = new BufferedWriter(new OutputStreamWriter(instance.getOutputStream()));
+            writer.write(parameters);
+            writer.flush();
+            writer.close();
+        } catch(IOException e) {
+            System.out.println("The exception occured while writing");
+            //e.printStackTrace();
+        }
+        
+        try {
+            BufferedReader reader = 
+                new BufferedReader(new InputStreamReader(instance.getInputStream()));
+            StringBuilder builder = new StringBuilder();
+            String line = null;
+            while ( (line = reader.readLine()) != null) {
+                builder.append(line);
+                builder.append(System.getProperty("line.separator"));
+            }
+            String result = builder.toString();
+            reader.close();
+            System.out.println(result);
+        } catch (IOException e){
+            System.out.println("The exception occured while reading");
+            //e.printStackTrace();
+        }
+        
         return null;
     }
 
@@ -207,7 +253,8 @@ class client_handler extends Thread
         if (command.equals("POST")){
             //The Headers for POST are good and we can proceed
             //Get the payload
-            int payloadLength = Integer.parseInt(headers.get("Content-Length"));
+            int payloadLength = Integer.parseInt(headers.get("CONTENT_LENGTH"));
+            System.out.println("Length of paylod " + payloadLength);
             char[] payload = new char[payloadLength];
             int counter = 0;
             while (payloadLength > 0){
@@ -215,9 +262,9 @@ class client_handler extends Thread
                 payloadLength--;
             }
             String parameters = decodeParameters(new String(payload));
-            System.out.println("Payload is [" + parameters + "]");
+            System.out.println("Payload is [" + parameters + "], and actual length " + parameters.length());
             //Now that we have the parameters, run the script and get the STDOUT
-            byte[] result = runScript(url, parameters);
+            byte[] result = runScript(url, parameters, headers);
             if (result == null){
                 //No output from script, return 204 No Content
                 return "HTTP/1.0 204 No Content" + crlf + crlf;
