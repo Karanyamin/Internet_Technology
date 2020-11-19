@@ -228,12 +228,12 @@ class client_handler extends Thread
         if (!checkPOSTHeaders(url, headers)){
             //One of the headers is wrong, return error code in server response
             return server_response;
-        }else{
+        }/*else{
             return "VALID" + crlf + crlf;
-        }
+        }*/
         //All the headers are good and are in the headers map
         //String[] parseHeader = next.split(": "); // was (" ", 2) (?)
-        /*
+        
         boolean proceedWithGET = true;
 
         if (command.equals("POST")){
@@ -369,7 +369,7 @@ class client_handler extends Thread
                             outToClient.write(b);
                         }
                         return "";
-                        */ /*
+                        */
                     }
                     return tempServerResponse;
                     //need body of file and 500 Internal Server Error
@@ -378,7 +378,7 @@ class client_handler extends Thread
             
         }
         
-        return server_response;*/
+        return server_response;
     }
 
     public void printHTTPLine(String[] client_request){
