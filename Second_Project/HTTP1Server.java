@@ -149,19 +149,14 @@ class client_handler extends Thread
         return ret;      
     }
 
-    //Returns true if all the headers are good
-    //and return false if some header is false
+    //Returns the content length if all the headers are good
+    //and return 0 if some header is false
     //Writes "HTTP/1.0 411 Length Required"
     //or "HTTP/1.0 405 Method Not Allowed"
     //or "HTTP/1.0 500 Internal Server Error" into server_response if something is wrong
-    public boolean checkPOSTHeaders(String url, HashMap<String, String> map) throws IOException{
+    public int checkPOSTHeaders(String url){
 
-        String next = inFromClient.readLine();
-        String[] parseHeader = next.split(": "); // was (" ", 2) (?)
-        if (parseHeader.length == 2){
-            map.put(parseHeader[0], parseHeader[1]);
-        }
-        return true;
+        return 0;
     }
 
     //Decode Parameters
@@ -170,21 +165,37 @@ class client_handler extends Thread
     }
 
     public byte[] runScript(String url, String parameters){
-        ProcessBuilder process = new ProcessBuilder(url);
-        Map<String, String> environment = process.environment();
-        for (Map.Entry<String, String> entry : environment.entrySet()){
-            System.out.println("Key = " + entry.getKey() + ", Value = " + entry.getValue());
-        }
 
         return null;
     }
 
-    //Return all the necessary headers for a successful POST operation
+    //Return all the necessary headers for a successful POST operation: From, User-Agent, Content-Type, Content-Length
     public String OKPOSTHeaders(String url){
+        String ret = "HTTP/1.0 200 OK" + crlf;
 
+        try {
+            //first open the file with the URL
+            URL resource = getClass().getResource(url);
+            String actualPath = URLDecoder.decode(resource.getPath(), "UTF-8");
+            System.out.println("Trying to open file: [" + actualPath + "]");
+            File f = new File(actualPath);
+            //to do f.length(), check if the file exists or not - file can be null
+            if (Files.probeContentType(f.toPath()) != null) {
+                ret = ret + "Content-Type: " + url + crlf;
+            } else { //file is null
+                ret = ret + "Content-Type: application/octet-stream" + crlf;
+            }
+            ret = ret + "From: " + crlf;
+            ret = ret + "User-Agent: " + crlf;
+            ret = ret + "Content-Length: " + url.length() + crlf;
+        } catch (IOException e) {
+            System.out.println("Something went wrong trying to create headers/probe content");
+            ret = "HTTP/1.0 500 Internal Server Error" + crlf + crlf;
+            e.printStackTrace();
+        }
         return null;
     }
-
+    
     /*
     //File the file starting from the current working directory all the way down. If file missing, return null
     public File returnFile(String url){
@@ -194,41 +205,40 @@ class client_handler extends Thread
     public String handleRequest(String command, String url, String version) throws IOException {
         //Code that handles a GET or POST or HEAD command goes here
         //Check if there is a Conditional GET
-        //String next = inFromClient.readLine();
-        HashMap<String, String> headers = new HashMap<String, String>();
-        if (!checkPOSTHeaders(url, headers)){
-            //One of the headers is wrong, return error code in server response
-            return server_response;
-        }
-        //All the headers are good and are in the headers map
-        //String[] parseHeader = next.split(": "); // was (" ", 2) (?)
+        String next = inFromClient.readLine();
+        String[] parseHeader = next.split(": "); // was (" ", 2) (?)
         boolean proceedWithGET = true;
+        int payloadLength = 0;
 
         if (command.equals("POST")){
-            //The Headers for POST are good and we can proceed
-            //Get the payload
-            int payloadLength = Integer.parseInt(headers.get("Content-Length"));
-            char[] payload = new char[payloadLength];
-            int counter = 0;
-            while (payloadLength > 0){
-                payload[counter++] = (char)inFromClient.read();
-                payloadLength--;
+            if ((payloadLength = checkPOSTHeaders(url)) != 0){
+                //The Headers for POST are good and we can proceed
+                //Get the payload
+                char[] payload = new char[payloadLength];
+                int counter = 0;
+                while (payloadLength > 0){
+                    payload[counter++] = (char)inFromClient.read();
+                    payloadLength--;
+                }
+                String parameters = decodeParameters(new String(payload));
+                System.out.println("Payload is [" + parameters + "]");
+                //Now that we have the parameters, run the script and get the STDOUT
+                byte[] result = runScript(url, parameters);
+                if (result.length == 0){
+                    //No output from script, return 204 No Content
+                    return "HTTP/1.0 204 No Content" + crlf + crlf;
+                }
+                String tempServerResponse = OKPOSTHeaders(url);
+                outToClient.writeBytes(tempServerResponse);
+                outToClient.write(result, 0, result.length); //Writes output of cgi to socket
+                return "";
+            } else {
+                //Something is wrong with the POST headers. Return whatever is in server_response (Error Code)
+                return server_response;
             }
-            String parameters = decodeParameters(new String(payload));
-            System.out.println("Payload is [" + parameters + "]");
-            //Now that we have the parameters, run the script and get the STDOUT
-            byte[] result = runScript(url, parameters);
-            if (result == null){
-                //No output from script, return 204 No Content
-                return "HTTP/1.0 204 No Content" + crlf + crlf;
-            }
-            String tempServerResponse = OKPOSTHeaders(url);
-            outToClient.writeBytes(tempServerResponse);
-            outToClient.write(result, 0, result.length); //Writes output of cgi to socket
-            return "";
 
-        } else if (headers.containsKey("If-Modified-Since") && !command.equals("HEAD")){
-            if(!hasBeenModified(url, headers.get("If-Modified-Since"))){
+        } else if (parseHeader.length == 2 && parseHeader[0].equals("If-Modified-Since") && !command.equals("HEAD")){
+            if(!hasBeenModified(url, parseHeader[1])){
                 proceedWithGET = false; //Means object hasn't been modified so we don't need to get the object
                 
             }
