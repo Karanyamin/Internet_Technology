@@ -158,7 +158,7 @@ class client_handler extends Thread
         boolean validContentLength = false, validContentType = false; //these two headers are necessary for POST request to be valid
         String next = inFromClient.readLine();
         while(next != null && !(next.equals(""))){
-            System.out.println(next);
+            //System.out.println(next);
             String[] parseHeader = next.split(": ");
             if (parseHeader.length == 2){
                 if(parseHeader[0].equals("Content-Length")){
@@ -225,7 +225,7 @@ class client_handler extends Thread
         //String next = inFromClient.readLine();
         
         HashMap<String, String> headers = new HashMap<String, String>();
-        if (!checkPOSTHeaders(url, headers)){
+        if (!checkPOSTHeaders(url, headers) && command.equals("POST")){
             //One of the headers is wrong, return error code in server response
             return server_response;
         }/*else{
