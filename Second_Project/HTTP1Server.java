@@ -321,6 +321,7 @@ class client_handler extends Thread
                 baos.write(buffer, 0, n);
             }
             result = baos.toByteArray();
+
         } catch (IOException e){
             System.out.println("The exception occured while reading");
             //e.printStackTrace();
@@ -395,18 +396,20 @@ class client_handler extends Thread
         if (command.equals("POST")){
             //Check if url is a cgi script
             if (!isCGIScript(url)){
-                return "HTTP/1.0 500 Method Not Allowed";
+                return "HTTP/1.0 405 Method Not Allowed" + crlf + crlf;
             }
 
             //Check if the cgi script can be executed
             if (!canExecute(url)){
-                return "HTTP/1.0 403 Forbidden";
+                return "HTTP/1.0 403 Forbidden" + crlf + crlf;
             }
             
             //Remove If-Modified-Since header if in map
             headers.remove("If-Modified-Since");
             //The Headers for POST are good and we can proceed
             //Get the payload
+            
+            /*
             int payloadLength = Integer.parseInt(headers.get("CONTENT_LENGTH"));
             System.out.println("Length of paylod " + payloadLength);
             char[] payload = new char[payloadLength];
@@ -415,7 +418,26 @@ class client_handler extends Thread
                 payload[counter++] = (char)inFromClient.read();
                 payloadLength--;
             }
-            String parameters = decodeParameters(new String(payload));
+            */
+            /*
+            int payloadLength = Integer.parseInt(headers.get("CONTENT_LENGTH"));
+            System.out.println("Length of paylod " + payloadLength);
+            StringBuilder payload = new StringBuilder();
+            char c;
+            while ((c = (char)inFromClient.read()) != -1){
+                payload.append(c);
+            }
+            */
+            
+            StringBuilder payload = new StringBuilder();
+            char[] buffer = new char[4096];
+            while (inFromClient.ready()){
+                int n = inFromClient.read(buffer, 0, buffer.length);
+                if (n < 0) break;
+                payload.append(buffer, 0, n);
+            }
+            
+            String parameters = decodeParameters(payload.toString());
             System.out.println("Payload is [" + parameters + "], and actual length " + parameters.length());
             headers.put("CONTENT_LENGTH", String.valueOf(parameters.length()));
             //Now that we have the parameters, run the script and get the STDOUT
@@ -425,6 +447,7 @@ class client_handler extends Thread
                 return "HTTP/1.0 204 No Content" + crlf + crlf;
             }
             String tempServerResponse = OKPOSTHeaders(result.length, headers);
+            System.out.println("Writing to client \n" + tempServerResponse + new String(result));
             outToClient.writeBytes(tempServerResponse);
             outToClient.write(result, 0, result.length); //Writes output of cgi to socket
             return "";
