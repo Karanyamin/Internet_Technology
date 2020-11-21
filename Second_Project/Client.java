@@ -47,7 +47,7 @@ public class Client
         //outToServer.println(sentence);
         //while(true)
         //{
-        sentence = "POST /cgi_bin/print.cgi HTTP/1.0" + crlf + "From: me@home" + crlf + "Content-Length: 12" + crlf + "Content-Type: application/x-www-form-urlencoded"+ crlf + crlf + "file=.!/doc_root!/index.html&line=3"; //Edit command here \r\nIf-modified-since: Last January
+        sentence = "GET /cgi_bin/print.cgi HTTP/1.0" + crlf + crlf; //Edit command here \r\nIf-modified-since: Last January
         System.out.println("Sending command: [" + sentence + "]");
         outToServer.writeBytes(sentence);
         //modifiedSentence = inFromServer.readLine();
