@@ -10,6 +10,8 @@ import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.*;
 import java.util.ArrayList;
 import java.text.SimpleDateFormat;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.Date;
 import java.text.ParseException;
 import java.nio.file.Files;
@@ -135,7 +137,7 @@ class client_handler extends Thread {
         try {
             // Check if there's a Set-Cookie
             if (map.containsKey("Set-Cookie")) {
-                ret = ret + "Set-Cookie: " + map.get("Set-Cookie");
+                ret = ret + "Set-Cookie: lasttime=" + map.get("Set-Cookie") + crlf;
             }
 
             Date d = new Date(f.lastModified());
@@ -392,16 +394,72 @@ class client_handler extends Thread {
 
     // Gets the current time to use for the last time cookie header
     public String getLastTime() {
-        return "2020-12-10 10:10:10"; // Just an example
+        LocalDateTime myDateObj = LocalDateTime.now();
+        DateTimeFormatter myFormatObj = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
+        String formattedDate = myDateObj.format(myFormatObj);
+
+        return formattedDate;
     }
 
-    /*  Opens the html_seen.html file and writes the lasttime into the 
-        appropriate slots and returns the new html as a String
-    */
-    public String returnHTMLSeen(String lasttime){
+    /*
+     * Opens the html_seen.html file and writes the lasttime into the appropriate
+     * slots and returns the new html as a String
+     */
+    public String returnHTMLSeen(String lasttime, String rootPath) {
 
-        return "<html>\n<body>\n<h1>CS 352 Welcome Page </hi>\n<p>\n  Welcome back! Your last visit was at: "
-                + lasttime + "\n<p>\n</body>\n</html>";
+        // We need to extract the <Year>-<Month>-<Day> <Hour>-<Minute>-<Second> from
+        // lasttime
+        lasttime = lasttime.substring(9);
+        String[] time = lasttime.split("-| |:");
+        for (int i = 0; i < time.length; i++) {
+            System.out.println(time[i]);
+        }
+
+        // Open the html_seen file and store all the contents in a string
+        rootPath += "index_seen.html";
+        StringBuilder content = new StringBuilder();
+        String seenString = null;
+        try {
+            FileReader reader = new FileReader(rootPath);
+            int n;
+            while ((n = reader.read()) != -1) {
+                content.append((char)n);
+            }
+            seenString = content.toString();
+            reader.close();
+        } catch (IOException e) {
+            System.out.println("Error reading file in returnHTMLSeen");
+            e.printStackTrace();
+        }
+
+        //Add the YEAR in the correct spot
+        int index = seenString.indexOf("%YEAR");
+        seenString = seenString.substring(0, index) + time[0] + seenString.substring(index + 5);
+
+        //Add the MONTH in the correct spot
+        index = seenString.indexOf("%MONTH");
+        seenString = seenString.substring(0, index) + time[1] + seenString.substring(index + 6);
+
+        //Add the MONTH in the correct spot
+        index = seenString.indexOf("%DAY");
+        seenString = seenString.substring(0, index) + time[2] + seenString.substring(index + 4);
+
+        //Add the MONTH in the correct spot
+        index = seenString.indexOf("%HOUR");
+        seenString = seenString.substring(0, index) + time[3] + seenString.substring(index + 5);
+
+        //Add the MONTH in the correct spot
+        index = seenString.indexOf("%MINUTE");
+        seenString = seenString.substring(0, index) + time[4] + seenString.substring(index + 7);
+
+        //Add the MONTH in the correct spot
+        index = seenString.indexOf("%SECOND");
+        seenString = seenString.substring(0, index) + time[5] + seenString.substring(index + 7);
+        
+        return seenString;
+
+        //return "<html>\n<body>\n<h1>CS 352 Welcome Page 2 </hi>\n<p>\n  Welcome back! Your last visit was at: "
+        //        + lasttime + "\n<p>\n</body>\n</html>";
     }
 
     public void specializedHTMLSender(String payload, HashMap<String, String> map){
@@ -426,7 +484,7 @@ class client_handler extends Thread {
                 String newLastTime = getLastTime();
                 try {
                     lastTimeFromCookie = URLDecoder.decode(lastTimeFromCookie, "UTF-8");
-                    newLastTime = "lasttime=" + URLEncoder.encode(newLastTime, "UTF-8");
+                    newLastTime = URLEncoder.encode(newLastTime, "UTF-8");
                 } catch (UnsupportedEncodingException e) {
                     System.out.println("Couldn't decode cookie");
                     e.printStackTrace();
@@ -434,7 +492,8 @@ class client_handler extends Thread {
                 map.put("Set-Cookie", newLastTime);
 
                 //Update the html_seen.html with new time and returns it as the payload
-                String htmlString = returnHTMLSeen(lastTimeFromCookie);
+                System.out.println("THe cookie i got was " + lastTimeFromCookie);
+                String htmlString = returnHTMLSeen(lastTimeFromCookie, rootPath);
                 
                 //use specializeHTMLSender to send the HTTP reponse to client with payload
                 specializedHTMLSender(htmlString, map);
@@ -446,7 +505,7 @@ class client_handler extends Thread {
                 // Send a cookie to client with last time
                 String lastTime = getLastTime();
                 try {
-                    lastTime = "lasttime=" + URLEncoder.encode(lastTime, "UTF-8");
+                    lastTime = URLEncoder.encode(lastTime, "UTF-8");
                 } catch (UnsupportedEncodingException e) {
                     System.out.println("Couldn't print encoder");
                     e.printStackTrace();
@@ -454,7 +513,7 @@ class client_handler extends Thread {
                 map.put("Set-Cookie", lastTime);
 
                 //Attach index.html to the rootPath and return
-                rootPath += "/index.html"; //Maybe do some error checking after to see if index.html exists and can be read
+                rootPath += "index.html"; //Maybe do some error checking after to see if index.html exists and can be read
             }
         }
         return rootPath;
