@@ -12,6 +12,7 @@ import java.util.ArrayList;
 import java.text.SimpleDateFormat;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeParseException;
 import java.util.Date;
 import java.text.ParseException;
 import java.nio.file.Files;
@@ -409,7 +410,9 @@ class client_handler extends Thread {
 
         // We need to extract the <Year>-<Month>-<Day> <Hour>-<Minute>-<Second> from
         // lasttime
+        lasttime = lasttime.trim();
         lasttime = lasttime.substring(9);
+        lasttime = lasttime.trim(); //Trim any leading or trailing white space
         String[] time = lasttime.split("-| |:");
         for (int i = 0; i < time.length; i++) {
             System.out.println(time[i]);
@@ -423,7 +426,7 @@ class client_handler extends Thread {
             FileReader reader = new FileReader(rootPath);
             int n;
             while ((n = reader.read()) != -1) {
-                content.append((char)n);
+                content.append((char) n);
             }
             seenString = content.toString();
             reader.close();
@@ -432,41 +435,73 @@ class client_handler extends Thread {
             e.printStackTrace();
         }
 
-        //Add the YEAR in the correct spot
+        // Add the YEAR in the correct spot
         int index = seenString.indexOf("%YEAR");
         seenString = seenString.substring(0, index) + time[0] + seenString.substring(index + 5);
 
-        //Add the MONTH in the correct spot
+        // Add the MONTH in the correct spot
         index = seenString.indexOf("%MONTH");
         seenString = seenString.substring(0, index) + time[1] + seenString.substring(index + 6);
 
-        //Add the MONTH in the correct spot
+        // Add the MONTH in the correct spot
         index = seenString.indexOf("%DAY");
         seenString = seenString.substring(0, index) + time[2] + seenString.substring(index + 4);
 
-        //Add the MONTH in the correct spot
+        // Add the MONTH in the correct spot
         index = seenString.indexOf("%HOUR");
         seenString = seenString.substring(0, index) + time[3] + seenString.substring(index + 5);
 
-        //Add the MONTH in the correct spot
+        // Add the MONTH in the correct spot
         index = seenString.indexOf("%MINUTE");
         seenString = seenString.substring(0, index) + time[4] + seenString.substring(index + 7);
 
-        //Add the MONTH in the correct spot
+        // Add the MONTH in the correct spot
         index = seenString.indexOf("%SECOND");
         seenString = seenString.substring(0, index) + time[5] + seenString.substring(index + 7);
-        
+
         return seenString;
 
-        //return "<html>\n<body>\n<h1>CS 352 Welcome Page 2 </hi>\n<p>\n  Welcome back! Your last visit was at: "
-        //        + lasttime + "\n<p>\n</body>\n</html>";
+        // return "<html>\n<body>\n<h1>CS 352 Welcome Page 2 </hi>\n<p>\n Welcome back!
+        // Your last visit was at: "
+        // + lasttime + "\n<p>\n</body>\n</html>";
     }
 
-    public void specializedHTMLSender(String payload, HashMap<String, String> map){
+    public void specializedHTMLSender(String payload, HashMap<String, String> map) {
         server_response = "HTTP/2.0 200 OK" + crlf;
         server_response += "Content-Type: text/html" + crlf;
         server_response += "Set-Cookie: lasttime=" + map.get("Set-Cookie") + crlf + crlf;
         server_response += payload;
+    }
+
+    public boolean validCookie(String time) {
+
+        // Check if the date is formatted correctly and return false if it isnt
+        DateTimeFormatter myFormatObj = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
+        try {
+            time = URLDecoder.decode(time, "UTF-8");
+        } catch (UnsupportedEncodingException e1) {
+            System.out.println("Couldn't decode the time in validCookie");
+            e1.printStackTrace();
+            return false;
+        }
+        time = (time.split("=", 2))[1]; //Gets the value
+        time = time.trim(); //Deletes any leading or trailing white space
+        System.out.println("Checking if time " + time + " is valid in validCookie");
+        LocalDateTime date;
+        try {
+            date = LocalDateTime.parse(time, myFormatObj);
+        } catch (DateTimeParseException e){
+            System.out.println("Date is not formmatted correctly");
+            return false;
+        }
+
+        //Check if date is after today
+        if (date.isAfter(LocalDateTime.now())){
+            System.out.println("Date is after current");
+            return false;
+        }
+
+        return true;
     }
 
     public String updatePathIfRoot(String url, String rootPath, HashMap<String, String> map) {
@@ -474,7 +509,7 @@ class client_handler extends Thread {
             // Requesting index.html or index_seen.html
 
             // Check if request has a Cookie header
-            if (map.containsKey("Cookie")) {
+            if (map.containsKey("Cookie") && validCookie(map.get("Cookie")) ) {
                 // This client has visited this server before
 
                 // Get the last time visited from the cookie
