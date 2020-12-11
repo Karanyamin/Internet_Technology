@@ -50,6 +50,17 @@ public class Client
         sentence = "POST /cgi_bin/param.cgi HTTP/1.0" + crlf + crlf + "file=../doc_root/index.html&line=3"; //Edit command here \r\nIf-modified-since: Last January
         System.out.println("Sending command: [" + sentence + "]");
         outToServer.writeBytes(sentence);
+        /*
+        sentence = "GET /cgi_bin/print.cgi HTTP/1.0"
+                     //+ crlf + "From: me@mycomputer"
+                     //+ crlf + "User-Agent: telnet"
+                     //+ crlf + "Content-Type: application/x-www-form-urlencoded"
+                     //+ crlf + "Content-Length: 4"
+                     + crlf + crlf + ""; //Edit command here \r\nIf-modified-since: Last January
+        System.out.println("Sending command: [\n\n" + sentence + "\n\n]");
+        outToServer.writeBytes(sentence);
+        */
+        
         //modifiedSentence = inFromServer.readLine();
         System.out.println("From Server [");
         
