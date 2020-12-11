@@ -5,7 +5,6 @@ import java.net.ServerSocket;
 import java.net.Socket;
 import java.lang.String;
 import java.lang.*;
-import java.io.IOException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.*;
@@ -15,30 +14,28 @@ import java.util.Date;
 import java.text.ParseException;
 import java.nio.file.Files;
 
-
 //Quick Change
 
 //client_handler class
-class client_handler extends Thread
-{
+class client_handler extends Thread {
     final BufferedReader inFromClient;
     final DataOutputStream outToClient;
     final Socket s;
     private ArrayList<client_handler> clients;
-    final String crlf = "\r\n"; //Carriage return line feed
+    final String crlf = "\r\n"; // Carriage return line feed
     private String server_response;
-    private int timeout = 5000; //in ms
+    private int timeout = 5000; // in ms
 
-    //constructor
-    public client_handler(Socket s, ArrayList<client_handler> clients, BufferedReader inFromClient, DataOutputStream outToClient)  
-    { 
-        this.s = s; 
+    // constructor
+    public client_handler(Socket s, ArrayList<client_handler> clients, BufferedReader inFromClient,
+            DataOutputStream outToClient) {
+        this.s = s;
         this.clients = clients;
-        this.inFromClient = inFromClient; 
-        this.outToClient = outToClient;  
+        this.inFromClient = inFromClient;
+        this.outToClient = outToClient;
     }
 
-    public boolean unSupportedVersion(String s){
+    public boolean unSupportedVersion(String s) {
         if (s.equals("1.1") || s.equals("2.0") || s.equals("3.0") || s.equals("2") || s.equals("3")) {
             return true;
         } else {
@@ -46,9 +43,11 @@ class client_handler extends Thread
         }
     }
 
-    //Returns true if method field is GET, POST, HEAD and HTTP version is 1.0. False if anything else. If it returns False, write response to socket and close connection
-    public boolean validRequestLine(String[] client_request){
-        if(client_request.length != 3){
+    // Returns true if method field is GET, POST, HEAD and HTTP version is 1.0.
+    // False if anything else. If it returns False, write response to socket and
+    // close connection
+    public boolean validRequestLine(String[] client_request) {
+        if (client_request.length != 3) {
             System.out.println("Check 1");
             server_response = "HTTP/1.0 400 Bad Request" + crlf + crlf;
             return false;
@@ -56,86 +55,91 @@ class client_handler extends Thread
             String command = client_request[0];
             String resource = client_request[1];
             String version = client_request[2];
-            //check if the version of HTTP is valid ("HTTP/1.0")
-            if(version.compareTo("HTTP/1.0") != 0 && !version.equals("HTTP/0.9")) {
-                if(version.length() > 5)
-                {
-                    if(version.substring(0,5).compareTo("HTTP/") == 0 && unSupportedVersion(version.substring(5)) ){ 
+            // check if the version of HTTP is valid ("HTTP/1.0")
+            if (version.compareTo("HTTP/1.0") != 0 && !version.equals("HTTP/0.9")) {
+                if (version.length() > 5) {
+                    if (version.substring(0, 5).compareTo("HTTP/") == 0 && unSupportedVersion(version.substring(5))) {
                         server_response = "HTTP/1.0 505 HTTP Version Not Supported" + crlf + crlf;
                     } else {
                         server_response = "HTTP/1.0 400 Bad Request" + crlf + crlf;
                     }
                     return false;
-                } else{
+                } else {
                     server_response = "HTTP/1.0 400 Bad Request" + crlf + crlf;
                     return false;
                 }
-            } else if(command.compareTo("GET") != 0 && command.compareTo("POST") != 0 && command.compareTo("HEAD") != 0){
-                //command is valid for 1.0 but not supported
-                if(command.compareTo("DELETE") == 0 || command.compareTo("PUT") == 0 || command.compareTo("LINK") == 0 || command.compareTo("UNLINK") == 0){
+            } else if (command.compareTo("GET") != 0 && command.compareTo("POST") != 0
+                    && command.compareTo("HEAD") != 0) {
+                // command is valid for 1.0 but not supported
+                if (command.compareTo("DELETE") == 0 || command.compareTo("PUT") == 0 || command.compareTo("LINK") == 0
+                        || command.compareTo("UNLINK") == 0) {
                     server_response = "HTTP/1.0 501 Not Implemented" + crlf + crlf;
                     return false;
-                }
-                else {
+                } else {
                     server_response = "HTTP/1.0 400 Bad Request" + crlf + crlf;
                     return false;
                 }
-            } else if(command.compareTo("GET") == 0){
+            } else if (command.compareTo("GET") == 0) {
                 return true;
-            }
-            else if(command.compareTo("POST") == 0){
+            } else if (command.compareTo("POST") == 0) {
                 return true;
-            }
-            else if(command.compareTo("HEAD") == 0){
+            } else if (command.compareTo("HEAD") == 0) {
                 return true;
             }
 
-            return false; //Just here as placeholder Haven't made sure it is correct
+            return false; // Just here as placeholder Haven't made sure it is correct
         }
     }
 
-    //Return true if the object has been modified since the date, and false otherwise. If false, write 304 Not Modified to server response
-    public boolean hasBeenModified(String url, String dateLastModified){ 
-        //try{
-            try{
-                URL resource = getClass().getResource(url);
-                if(resource == null){
-                    server_response = ("HTTP/1.0 404 Not Found" + crlf + crlf);
+    // Return true if the object has been modified since the date, and false
+    // otherwise. If false, write 304 Not Modified to server response
+    public boolean hasBeenModified(String url, String dateLastModified) {
+        // try{
+        try {
+            URL resource = getClass().getResource(url);
+            if (resource == null) {
+                server_response = ("HTTP/1.0 404 Not Found" + crlf + crlf);
+                return false;
+            } else {
+                File f = new File(resource.getPath());
+                SimpleDateFormat df = new SimpleDateFormat("EEE, dd MMM yyyy HH:mm:ss z", Locale.ENGLISH);
+                Date result = df.parse(dateLastModified);
+                long lastModified = result.getTime();
+                if (lastModified > f.lastModified() && lastModified <= System.currentTimeMillis()) { // FILE NOT
+                                                                                                     // MODIFIED SINCE
+                                                                                                     // and since date
+                                                                                                     // less than
+                                                                                                     // current system
+                                                                                                     // time
+                    server_response = ("HTTP/1.0 304 Not Modified" + crlf + "Expires: Sat, 21 Jul 2021 11:00:00 GMT"
+                            + crlf + crlf);
                     return false;
-                }else{
-                    File f = new File(resource.getPath());
-                    SimpleDateFormat df = new SimpleDateFormat("EEE, dd MMM yyyy HH:mm:ss z", Locale.ENGLISH);
-                    Date result = df.parse(dateLastModified);    
-                    long lastModified = result.getTime();
-                        if(lastModified > f.lastModified() && lastModified <= System.currentTimeMillis()){ //FILE NOT MODIFIED SINCE and since date less than current system time
-                            server_response = ("HTTP/1.0 304 Not Modified" + crlf + "Expires: Sat, 21 Jul 2021 11:00:00 GMT" + crlf + crlf);
-                            return false;
-                        }
-                }   
-            }catch(ParseException pe){
-                //pe.printStackTrace(); 
-                //server_response = ("HTTP/1.0 400 Bad Request" + crlf + crlf); //invalid date = Bad request? No @66 If date invalid, ignore the conditional
-                return true; //Assume has been "modified", or date is in invalid form and proceed like GET
+                }
             }
-        //}catch(IOException e) {
-        //    e.printStackTrace();
-        //}
+        } catch (ParseException pe) {
+            // pe.printStackTrace();
+            // server_response = ("HTTP/1.0 400 Bad Request" + crlf + crlf); //invalid date
+            // = Bad request? No @66 If date invalid, ignore the conditional
+            return true; // Assume has been "modified", or date is in invalid form and proceed like GET
+        }
+        // }catch(IOException e) {
+        // e.printStackTrace();
+        // }
 
         return true;
     }
 
-    public String OK_headers(File f, HashMap<String, String> map){
-        //Allow, Content-Encoding, Content-Length, Content-Type, Expires, Last-Modified
+    public String OK_headers(File f, HashMap<String, String> map) {
+        // Allow, Content-Encoding, Content-Length, Content-Type, Expires, Last-Modified
         String ret = "HTTP/1.0 200 OK" + crlf;
-        try
-        {
-            //Check if there's a Set-Cookie
-            if (map.containsKey("Set-Cookie")){
+        try {
+            // Check if there's a Set-Cookie
+            if (map.containsKey("Set-Cookie")) {
                 ret = ret + "Set-Cookie: " + map.get("Set-Cookie");
             }
 
             Date d = new Date(f.lastModified());
-            if(Files.probeContentType(f.toPath()) != null)
+            if (Files.probeContentType(f.toPath()) != null)
                 ret = ret + "Content-Type: " + Files.probeContentType(f.toPath()) + crlf;
             else
                 ret = ret + "Content-Type: application/octet-stream" + crlf;
@@ -143,88 +147,92 @@ class client_handler extends Thread
             SimpleDateFormat sdf = new SimpleDateFormat("EEE, dd MMM yyyy HH:mm:ss z");
             sdf.setTimeZone(TimeZone.getTimeZone("GMT"));
             ret = ret + "Last-Modified: " + sdf.format(d) + crlf;
-            ret = ret + "Content-Encoding: identity" + crlf; 
-            ret = ret + "Allow: GET, POST, HEAD" + crlf; //no sure if this is right
-            ret = ret + "Expires: Sat, 21 Jul 2021 11:00:00 GMT" + crlf + crlf; 
-        }catch (IOException e) {
+            ret = ret + "Content-Encoding: identity" + crlf;
+            ret = ret + "Allow: GET, POST, HEAD" + crlf; // no sure if this is right
+            ret = ret + "Expires: Sat, 21 Jul 2021 11:00:00 GMT" + crlf + crlf;
+        } catch (IOException e) {
             System.out.println("Something went wrong trying to create headers/probe content");
             ret = "HTTP/1.0 500 Internal Server Error" + crlf + crlf;
             e.printStackTrace();
         }
-        return ret;      
+        return ret;
     }
 
-    //Returns true if all the headers are good
-    //and return false if some header is false
-    //Writes "HTTP/1.0 411 Length Required"
-    //or "HTTP/1.0 405 Method Not Allowed"
-    //or "HTTP/1.0 500 Internal Server Error" into server_response if something is wrong
-    public boolean checkPOSTHeaders(String url, HashMap<String, String> map) throws IOException{
-        boolean validContentLength = false, validContentType = false; //these two headers are necessary for POST request to be valid
+    // Returns true if all the headers are good
+    // and return false if some header is false
+    // Writes "HTTP/1.0 411 Length Required"
+    // or "HTTP/1.0 405 Method Not Allowed"
+    // or "HTTP/1.0 500 Internal Server Error" into server_response if something is
+    // wrong
+    public boolean checkPOSTHeaders(String url, HashMap<String, String> map) throws IOException {
+        boolean validContentLength = false, validContentType = false; // these two headers are necessary for POST
+                                                                      // request to be valid
         String next = inFromClient.readLine();
-        while(next != null && !(next.equals(""))){
-            //System.out.println(next);
+        while (next != null && !(next.equals(""))) {
+            // System.out.println(next);
             String[] parseHeader = next.split(": ");
-            if (parseHeader.length == 2){
-                if(parseHeader[0].equals("Content-Length")){
-                    if(parseHeader[1] != null){
-                        try{//check if content-length is a numeric value
+            if (parseHeader.length == 2) {
+                if (parseHeader[0].equals("Content-Length")) {
+                    if (parseHeader[1] != null) {
+                        try {// check if content-length is a numeric value
                             int d = Integer.parseInt(parseHeader[1]);
-                            //Check is length is negative
-                            if (d < 0) throw new NumberFormatException("Negative number");
-                        }catch(NumberFormatException nfe){
+                            // Check is length is negative
+                            if (d < 0)
+                                throw new NumberFormatException("Negative number");
+                        } catch (NumberFormatException nfe) {
                             server_response = "HTTP/1.0 411 Length Required" + crlf + crlf;
                             return false;
                         }
                         validContentLength = true;
-                        map.put("CONTENT_LENGTH", parseHeader[1]); //Puts CONTENT_LENGTH in map
-                    }else{
+                        map.put("CONTENT_LENGTH", parseHeader[1]); // Puts CONTENT_LENGTH in map
+                    } else {
                         server_response = "HTTP/1.0 411 Length Required" + crlf + crlf;
                         return false;
                     }
-                } else if(parseHeader[0].equals("Content-Type")){
-                    if (parseHeader[1] != null && parseHeader[1].equals("application/x-www-form-urlencoded")){
+                } else if (parseHeader[0].equals("Content-Type")) {
+                    if (parseHeader[1] != null && parseHeader[1].equals("application/x-www-form-urlencoded")) {
                         validContentType = true;
-                    } else if (parseHeader[1] != null && parseHeader[1].equals("text/html")){
+                    } else if (parseHeader[1] != null && parseHeader[1].equals("text/html")) {
                         map.put(parseHeader[0], parseHeader[1]);
                     } else {
-                        //Invalid content-type
+                        // Invalid content-type
                         server_response = "HTTP/1.0 500 Internal Server Error" + crlf + crlf;
                         return false;
                     }
-                } else if (parseHeader[0].equals("From")){
+                } else if (parseHeader[0].equals("From")) {
                     map.put("HTTP_FROM", parseHeader[1]);
-                } else if (parseHeader[0].equals("User-Agent")){
+                } else if (parseHeader[0].equals("User-Agent")) {
                     map.put("HTTP_USER_AGENT", parseHeader[1]);
-                } else if (parseHeader[0].equals("If-Modified-Since")){
+                } else if (parseHeader[0].equals("If-Modified-Since")) {
                     map.put("If-Modified-Since", parseHeader[1]);
-                } else if (parseHeader[0].equals("Set-Cookie")){
-                    map.put("Set-Cookie", parseHeader[1]);
-                } else if (parseHeader[0].equals("Cookie")){
+                } else if (parseHeader[0].equals("Set-Cookie")) {
+                    // map.put("Set-Cookie", parseHeader[1]);
+                    System.out.println("Just got Set-Cookie, shouldn't have\n");
+                } else if (parseHeader[0].equals("Cookie")) {
                     map.put("Cookie", parseHeader[1]);
                 }
             }
             next = inFromClient.readLine();
         }
-        //Put in all the other Environment Variables
+        // Put in all the other Environment Variables
         map.put("SCRIPT_NAME", url);
         map.put("SERVER_NAME", InetAddress.getLocalHost().getHostAddress().trim());
         map.put("SERVER_PORT", String.valueOf(s.getPort()));
 
-        if(validContentLength && validContentType) //both content length and type exist and are valid
+        if (validContentLength && validContentType) // both content length and type exist and are valid
             return true;
-        else if(!validContentLength){ //request doesn't have "Content-Length" header
+        else if (!validContentLength) { // request doesn't have "Content-Length" header
             server_response = "HTTP/1.0 411 Length Required" + crlf + crlf;
             return false;
         } else {
-            //request doesn't have "Content-Type" header
+            // request doesn't have "Content-Type" header
             server_response = "HTTP/1.0 500 Internal Server Error" + crlf + crlf;
-        } 
+        }
         return false;
     }
 
-    public boolean escapedCharacters(char c){
-        switch (c){
+    public boolean escapedCharacters(char c) {
+        switch (c) {
             case '!':
                 return true;
             case '*':
@@ -262,16 +270,17 @@ class client_handler extends Thread
             default:
                 return false;
         }
-        
+
     }
 
-    //Decode Parameters
-    public String decodeParameters(String parameters){
+    // Decode Parameters
+    public String decodeParameters(String parameters) {
         System.out.println("Payload before decoding [" + parameters + "]");
         String decodedString = "";
         int index;
-        while ((index = parameters.indexOf('!')) != -1 && index < (parameters.length() - 1) && escapedCharacters(parameters.charAt(index + 1))){
-            //Theres a character still encoded...decode it
+        while ((index = parameters.indexOf('!')) != -1 && index < (parameters.length() - 1)
+                && escapedCharacters(parameters.charAt(index + 1))) {
+            // Theres a character still encoded...decode it
             decodedString += parameters.substring(0, index) + parameters.charAt(index + 1);
             parameters = parameters.substring(index + 2);
         }
@@ -279,86 +288,80 @@ class client_handler extends Thread
     }
 
     /*
-    This method takes the url for the file and the parameters and
-    all the environment variables and creates a Process. Returns the bytes from STDOUT
-
+     * This method takes the url for the file and the parameters and all the
+     * environment variables and creates a Process. Returns the bytes from STDOUT
+     * 
      */
     public byte[] runScript(String url, String parameters, HashMap<String, String> headerMap) throws IOException {
         ProcessBuilder process = new ProcessBuilder("." + url);
         Map<String, String> environment = process.environment();
-        //Set up environment variables
-        for (Map.Entry<String, String> entry : headerMap.entrySet()){
-            if (!entry.getKey().equals("If-Modified-Since")){
+        // Set up environment variables
+        for (Map.Entry<String, String> entry : headerMap.entrySet()) {
+            if (!entry.getKey().equals("If-Modified-Since")) {
                 environment.put(entry.getKey(), entry.getValue());
             }
         }
-        for (Map.Entry<String, String> entry : environment.entrySet()){
+        for (Map.Entry<String, String> entry : environment.entrySet()) {
             System.out.println("Key = " + entry.getKey() + ", Value = " + entry.getValue());
         }
-        //Start process
+        // Start process
         Process instance = process.start();
         BufferedWriter writer = null;
-        try{
+        try {
             writer = new BufferedWriter(new OutputStreamWriter(instance.getOutputStream()));
             writer.write(parameters);
             writer.flush();
             writer.close();
-        } catch(IOException e) {
+        } catch (IOException e) {
             System.out.println("The exception occured while writing");
-            //e.printStackTrace();
+            // e.printStackTrace();
         }
-        //String result = "";
+        // String result = "";
         byte[] result = null;
         try {
             /*
-            BufferedReader reader = 
-                new BufferedReader(new InputStreamReader(instance.getInputStream()));
-            StringBuilder builder = new StringBuilder();
-            String line = null;
-            while ( (line = reader.readLine()) != null) {
-                builder.append(line);
-                builder.append(System.getProperty("line.separator"));
-            }
-            result = builder.toString();
-            reader.close();
-            System.out.println(result);
-            */
+             * BufferedReader reader = new BufferedReader(new
+             * InputStreamReader(instance.getInputStream())); StringBuilder builder = new
+             * StringBuilder(); String line = null; while ( (line = reader.readLine()) !=
+             * null) { builder.append(line);
+             * builder.append(System.getProperty("line.separator")); } result =
+             * builder.toString(); reader.close(); System.out.println(result);
+             */
             DataInputStream reader = new DataInputStream(instance.getInputStream());
             ByteArrayOutputStream baos = new ByteArrayOutputStream();
             byte[] buffer = new byte[4096];
-            while (true){
+            while (true) {
                 int n = reader.read(buffer);
-                if (n < 0) break;
+                if (n < 0)
+                    break;
                 baos.write(buffer, 0, n);
             }
             result = baos.toByteArray();
 
-        } catch (IOException e){
+        } catch (IOException e) {
             System.out.println("The exception occured while reading");
-            //e.printStackTrace();
+            // e.printStackTrace();
         }
-        
-        //Check if no output
-        if (result.length == 0) return null;
-        
+
+        // Check if no output
+        if (result.length == 0)
+            return null;
+
         return result;
     }
 
-    //Return all the necessary headers for a successful POST operation
-    public String OKPOSTHeaders(int contentLengthSize, HashMap<String, String> map){
+    // Return all the necessary headers for a successful POST operation
+    public String OKPOSTHeaders(int contentLengthSize, HashMap<String, String> map) {
 
-        //Response OK line
+        // Response OK line
         String result = "HTTP/1.0 200 OK" + crlf;
         /*
-        //All necessary headers
-        if (map.containsKey("HTTP_FROM")){
-            result += "From: " + map.get("HTTP_FROM") + crlf;
-        }
-
-        if (map.containsKey("HTTP_USER_AGENT")){
-            result += "User-Agent: " + map.get("HTTP_USER_AGENT") + crlf;
-        }
-        */
+         * //All necessary headers if (map.containsKey("HTTP_FROM")){ result += "From: "
+         * + map.get("HTTP_FROM") + crlf; }
+         * 
+         * if (map.containsKey("HTTP_USER_AGENT")){ result += "User-Agent: " +
+         * map.get("HTTP_USER_AGENT") + crlf; }
+         */
         result += "Allow: GET, POST, HEAD" + crlf;
         result += "Expires: Sat, 21 Jul 2021 11:00:00 GMT" + crlf;
         result += "Content-Length: " + contentLengthSize + crlf;
@@ -367,28 +370,92 @@ class client_handler extends Thread
         return result;
     }
 
-    //Checks if a file can be executed
-    public boolean canExecute(String url){
+    // Checks if a file can be executed
+    public boolean canExecute(String url) {
         File file = new File("." + url);
-        if (file.canExecute()) return true;
+        if (file.canExecute())
+            return true;
 
         return false;
     }
 
-    public boolean isCGIScript(String url){
+    public boolean isCGIScript(String url) {
         String extension = "";
         int index = url.lastIndexOf('.');
-        if (index >= 0 ){
-            extension = url.substring(index+1);
-            if (extension.equals("cgi")) return true;
+        if (index >= 0) {
+            extension = url.substring(index + 1);
+            if (extension.equals("cgi"))
+                return true;
         }
         return false;
     }
 
-    public String updatePathIfRoot(String url, String rootPath, HashMap<String, String> map){
-        if (url.equals("/")){
-            //Requesting index.html or index_seen.html
-            
+    // Gets the current time to use for the last time cookie header
+    public String getLastTime() {
+        return "2020-12-10 10:10:10"; // Just an example
+    }
+
+    /*  Opens the html_seen.html file and writes the lasttime into the 
+        appropriate slots and returns the new html as a String
+    */
+    public String returnHTMLSeen(String lasttime){
+
+        return "<html>\n<body>\n<h1>CS 352 Welcome Page </hi>\n<p>\n  Welcome back! Your last visit was at: "
+                + lasttime + "\n<p>\n</body>\n</html>";
+    }
+
+    public void specializedHTMLSender(String payload, HashMap<String, String> map){
+        server_response = "HTTP/2.0 200 OK" + crlf;
+        server_response += "Content-Type: text/html" + crlf;
+        server_response += "Set-Cookie: lasttime=" + map.get("Set-Cookie") + crlf + crlf;
+        server_response += payload;
+    }
+
+    public String updatePathIfRoot(String url, String rootPath, HashMap<String, String> map) {
+        if (url.equals("/")) {
+            // Requesting index.html or index_seen.html
+
+            // Check if request has a Cookie header
+            if (map.containsKey("Cookie")) {
+                // This client has visited this server before
+
+                // Get the last time visited from the cookie
+                String lastTimeFromCookie = map.get("Cookie");
+
+                //Send new lasttime as a cookie to client
+                String newLastTime = getLastTime();
+                try {
+                    lastTimeFromCookie = URLDecoder.decode(lastTimeFromCookie, "UTF-8");
+                    newLastTime = "lasttime=" + URLEncoder.encode(newLastTime, "UTF-8");
+                } catch (UnsupportedEncodingException e) {
+                    System.out.println("Couldn't decode cookie");
+                    e.printStackTrace();
+                }
+                map.put("Set-Cookie", newLastTime);
+
+                //Update the html_seen.html with new time and returns it as the payload
+                String htmlString = returnHTMLSeen(lastTimeFromCookie);
+                
+                //use specializeHTMLSender to send the HTTP reponse to client with payload
+                specializedHTMLSender(htmlString, map);
+                return "";
+            } else {
+                // This client has not visited this server before. Return index.html with a
+                // cookie
+
+                // Send a cookie to client with last time
+                String lastTime = getLastTime();
+                try {
+                    lastTime = "lasttime=" + URLEncoder.encode(lastTime, "UTF-8");
+                } catch (UnsupportedEncodingException e) {
+                    System.out.println("Couldn't print encoder");
+                    e.printStackTrace();
+                }
+                map.put("Set-Cookie", lastTime);
+
+                //Attach index.html to the rootPath and return
+                rootPath += "/index.html"; //Maybe do some error checking after to see if index.html exists and can be read
+            }
         }
         return rootPath;
     }
@@ -480,6 +547,11 @@ class client_handler extends Thread
                 URL resource = getClass().getResource(url);
                 String actualPath = URLDecoder.decode(resource.getPath(), "UTF-8");
                 actualPath = updatePathIfRoot(url, actualPath, headers);
+
+                if (actualPath.length() == 0){
+                    //This means the client requested a html and the job was done by updatePathIfRoot and the reponse is in server_reponse
+                    return server_response;
+                }
                 System.out.println("Trying to open file: [" + actualPath + "]");
                 File f = new File(actualPath);
                 if(!f.canRead()){
@@ -532,6 +604,12 @@ class client_handler extends Thread
             else{
                 String actualPath = URLDecoder.decode(resource.getPath(), "UTF-8");
                 actualPath = updatePathIfRoot(url, actualPath, headers);
+
+                if (actualPath.length() == 0){
+                    //This means the client requested a html and the job was done by updatePathIfRoot and the reponse is in server_reponse
+                    return server_response;
+                }
+
                 System.out.println("Trying to open file: [" + actualPath + "]");
                 File f = new File(actualPath);
                 if(!f.canRead()){
