@@ -1,6 +1,11 @@
 port = 4644
 
-all: compile doc scripts
+all: compile3 
+
+compile3: HTTP3Server.java Client.java
+	javac HTTP3Server.java Client.java
+
+project2: compile doc scripts
 
 compile: HTTP1Server.java Client.java
 	javac HTTP1Server.java Client.java
@@ -20,14 +25,26 @@ copy1: HTTP1Server.class
 copy2: client_handler.class
 	mv client_handler.class ./doc_root
 
-clean:
+clean2:
 	rm -r doc_root Client.class cgi_bin client_handler.class HTTP1Server.class
 
-server:
+clean:
+	rm -r Client.class client_handler.class HTTP3Server.class ./CookieTester
+
+server2:
 	java -cp . HTTP1Server $(port)
 
-tester:
+server:
+	java -cp . HTTP3Server $(port)
+
+tester2:
 	java -jar HTTPServerTester.jar localhost $(port)
+
+tester: 
+	tar xvf CookieTester.tgz && cd CookieTester && java -jar CookieTest.jar localhost $(port)
+
+CookieTester:
+	tar -zxvf CookieTester.tgz
 
 client:
 	java Client $(port)
