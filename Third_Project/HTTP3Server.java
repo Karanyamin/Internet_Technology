@@ -124,11 +124,16 @@ class client_handler extends Thread
         return true;
     }
 
-    public String OK_headers(File f){
+    public String OK_headers(File f, HashMap<String, String> map){
         //Allow, Content-Encoding, Content-Length, Content-Type, Expires, Last-Modified
         String ret = "HTTP/1.0 200 OK" + crlf;
         try
         {
+            //Check if there's a Set-Cookie
+            if (map.containsKey("Set-Cookie")){
+                ret = ret + "Set-Cookie: " + map.get("Set-Cookie");
+            }
+
             Date d = new Date(f.lastModified());
             if(Files.probeContentType(f.toPath()) != null)
                 ret = ret + "Content-Type: " + Files.probeContentType(f.toPath()) + crlf;
@@ -180,6 +185,8 @@ class client_handler extends Thread
                 } else if(parseHeader[0].equals("Content-Type")){
                     if (parseHeader[1] != null && parseHeader[1].equals("application/x-www-form-urlencoded")){
                         validContentType = true;
+                    } else if (parseHeader[1] != null && parseHeader[1].equals("text/html")){
+                        map.put(parseHeader[0], parseHeader[1]);
                     } else {
                         //Invalid content-type
                         server_response = "HTTP/1.0 500 Internal Server Error" + crlf + crlf;
@@ -191,6 +198,10 @@ class client_handler extends Thread
                     map.put("HTTP_USER_AGENT", parseHeader[1]);
                 } else if (parseHeader[0].equals("If-Modified-Since")){
                     map.put("If-Modified-Since", parseHeader[1]);
+                } else if (parseHeader[0].equals("Set-Cookie")){
+                    map.put("Set-Cookie", parseHeader[1]);
+                } else if (parseHeader[0].equals("Cookie")){
+                    map.put("Cookie", parseHeader[1]);
                 }
             }
             next = inFromClient.readLine();
@@ -374,6 +385,14 @@ class client_handler extends Thread
         return false;
     }
 
+    public String updatePathIfRoot(String url, String rootPath, HashMap<String, String> map){
+        if (url.equals("/")){
+            //Requesting index.html or index_seen.html
+            
+        }
+        return rootPath;
+    }
+
     /*
     //File the file starting from the current working directory all the way down. If file missing, return null
     public File returnFile(String url){
@@ -460,12 +479,13 @@ class client_handler extends Thread
             if(proceedWithGET){
                 URL resource = getClass().getResource(url);
                 String actualPath = URLDecoder.decode(resource.getPath(), "UTF-8");
+                actualPath = updatePathIfRoot(url, actualPath, headers);
                 System.out.println("Trying to open file: [" + actualPath + "]");
                 File f = new File(actualPath);
                 if(!f.canRead()){
                     return ("HTTP/1.0 403 Forbidden" + crlf + crlf);
                 }else{
-                    String tempServerResponse = OK_headers(f);
+                    String tempServerResponse = OK_headers(f, headers);
                     if (tempServerResponse.equals("HTTP/1.0 500 Internal Server Error" + crlf + crlf)) return tempServerResponse; //Error occurred while making headers
                     //Read file into byte array
                     FileInputStream fileStream = null;
@@ -511,12 +531,13 @@ class client_handler extends Thread
                 return ("HTTP/1.0 404 Not Found" + crlf + crlf);
             else{
                 String actualPath = URLDecoder.decode(resource.getPath(), "UTF-8");
+                actualPath = updatePathIfRoot(url, actualPath, headers);
                 System.out.println("Trying to open file: [" + actualPath + "]");
                 File f = new File(actualPath);
                 if(!f.canRead()){
                     return ("HTTP/1.0 403 Forbidden" + crlf + crlf);
                 }else{
-                    String tempServerResponse = OK_headers(f);
+                    String tempServerResponse = OK_headers(f, headers);
                     if (tempServerResponse.equals("HTTP/1.0 500 Internal Server Error" + crlf + crlf)) return tempServerResponse; //Error occurred while making headers
                     //ONLY DO SO IF THERE IS NO HEAD
                     if (!command.equals("HEAD")){
@@ -631,7 +652,7 @@ class client_handler extends Thread
 }
 
 // PartialHTTP1 Server Class
-class HTTP1Server
+class HTTP3Server
 {
     //initializing the thread pool - starting with 5 
     //private static ExecutorService pool = Executors.newFixedThreadPool(5);
