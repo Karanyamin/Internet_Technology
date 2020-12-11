@@ -723,6 +723,9 @@ class client_handler extends Thread {
             
             System.out.println("Done writring");
 
+            //Close the socket
+            s.close();
+            
         }catch (IOException e) {
             e.printStackTrace();
         }
